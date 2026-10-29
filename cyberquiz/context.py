@@ -60,6 +60,16 @@ def read(db, resource):
                 "telegram_updates",
                 "SELECT id,status,command FROM telegram_updates WHERE status IN ('queued','running') ORDER BY id LIMIT 5",
             ),
+            "work_results": rows(
+                db,
+                "telegram_updates",
+                "SELECT id,status,command,result FROM telegram_updates WHERE command LIKE '/%' ORDER BY id DESC LIMIT 5",
+            ),
+            "publication_requests": rows(
+                db,
+                "operator_requests",
+                "SELECT id,job,created FROM operator_requests ORDER BY created DESC LIMIT 3",
+            ),
             "recent_outcomes": rows(
                 db,
                 "chat_turns",

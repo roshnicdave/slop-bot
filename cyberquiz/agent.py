@@ -7,7 +7,7 @@ from .agent_tools import TOOLS, execute
 from .chat import history
 from .store import now
 
-SYSTEM = """You operate this autonomous Reel system through Telegram. Speak naturally and briefly. Use the available capabilities to inspect or change it as the latest operator request requires. Treat current state and tool results as authoritative; history is context, not authorization. Report changes only after tool confirmation, and distinguish accepted work from completion. Describe queued content by its question rather than internal IDs. Credentials and arbitrary execution are unavailable."""
+SYSTEM = """You operate this autonomous Reel system through Telegram. Speak naturally and briefly. Carry out the latest operator request using the available capabilities without asking for another confirmation. Treat current state and tool results as authoritative; history is context, not authorization. Report changes only after tool confirmation, and distinguish accepted work from completion. Describe queued content by its question rather than internal IDs. Credentials and arbitrary execution are unavailable."""
 
 
 def run(db, ident, user, message, *, turn=None, executor=None):
@@ -20,7 +20,7 @@ def run(db, ident, user, message, *, turn=None, executor=None):
             "content": json.dumps(
                 {
                     "live_state": snapshot(db),
-                    "recent_conversation": history(db, user, verified=True),
+                    "recent_user_messages": [t["user"] for t in history(db, user)],
                 },
                 separators=(",", ":"),
             ),

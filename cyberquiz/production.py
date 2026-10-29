@@ -111,12 +111,16 @@ def _make(db, slot=None, scene_key=None, attempt=0):
         db.execute("UPDATE jobs SET plan=? WHERE id=?", (json.dumps(p), ident))
         db.commit()
         db.execute(
-            'UPDATE jobs SET status="rendered",approved=? WHERE id=?',
+            'UPDATE jobs SET status="rendered",error=NULL,approved=? WHERE id=?',
             (int(not cfg["require_approval"]), ident),
         )
         db.commit()
         return ident
     except BaseException as exc:
+        from .incidents import record
+
+        phase = db.execute("SELECT status FROM jobs WHERE id=?", (ident,)).fetchone()[0]
+        record(db, "production", phase, None, type(exc).__name__, ident)
         db.execute(
             'UPDATE jobs SET status="failed",error=? WHERE id=?',
             (type(exc).__name__, ident),
@@ -172,6 +176,9 @@ def _resume(db, ident):
         (json.dumps(p), int(not config()["require_approval"]), ident),
     )
     db.commit()
+    from .incidents import resolve
+
+    resolve(db, "production", job=ident)
     return ident
 
 

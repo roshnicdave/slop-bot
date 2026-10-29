@@ -37,6 +37,18 @@ def connect(path=None):
     CREATE TABLE IF NOT EXISTS metrics (
       media_id TEXT, observed TEXT, age_hours REAL, payload TEXT,
       PRIMARY KEY(media_id, observed));
+    CREATE TABLE IF NOT EXISTS incidents (
+      id TEXT PRIMARY KEY,component TEXT,phase TEXT,code INTEGER,message TEXT,
+      job TEXT,opened TEXT,resolved TEXT,state TEXT);
+    CREATE TABLE IF NOT EXISTS job_events (
+      id INTEGER PRIMARY KEY,job TEXT,previous_status TEXT,status TEXT,
+      previous_error TEXT,error TEXT,observed TEXT);
+    CREATE TRIGGER IF NOT EXISTS audit_job_transition AFTER UPDATE OF status,error ON jobs
+    WHEN OLD.status != NEW.status OR COALESCE(OLD.error,'') != COALESCE(NEW.error,'')
+    BEGIN
+      INSERT INTO job_events(job,previous_status,status,previous_error,error,observed)
+      VALUES(NEW.id,OLD.status,NEW.status,OLD.error,NEW.error,strftime('%Y-%m-%dT%H:%M:%fZ','now'));
+    END;
     CREATE TABLE IF NOT EXISTS sources (
       id TEXT PRIMARY KEY, fetched TEXT, published TEXT, url TEXT, payload TEXT);
     """)

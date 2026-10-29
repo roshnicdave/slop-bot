@@ -28,14 +28,18 @@ def read(db, resource):
         jobs = rows(
             db,
             "jobs",
-            "SELECT id,status,approved,created,error,published_at FROM jobs ORDER BY created DESC LIMIT 8",
+            "SELECT id,status,approved,created,published_at FROM jobs WHERE status IN ('drafting','voice','rendering','container_submitting','container_created','publish_unknown') ORDER BY created DESC LIMIT 8",
         )
         ready = rows(
             db,
             "jobs",
             "SELECT id,created,plan FROM jobs WHERE approved=1 AND status IN ('rendered','container_created') ORDER BY created LIMIT 3",
         )
-        for item in ready:
+        published = rows(
+            db, "jobs",
+            "SELECT id,published_at,plan FROM jobs WHERE status='published' ORDER BY published_at DESC LIMIT 2",
+        )
+        for item in ready + published:
             plan = json.loads(item.pop("plan") or "{}")
             item.update(
                 {key: plan.get(key) for key in ("question", "topic", "explanation")}
@@ -44,9 +48,10 @@ def read(db, resource):
             "ready_count": db.execute(
                 "SELECT COUNT(*) FROM jobs WHERE approved=1 AND status IN ('rendered','container_created')"
             ).fetchone()[0],
-            "counts": rows(
-                db, "jobs", "SELECT status,COUNT(*) AS count FROM jobs GROUP BY status"
-            ),
+            "published_total": db.execute(
+                "SELECT COUNT(*) FROM jobs WHERE status='published'"
+            ).fetchone()[0],
+            "published": published,
             "recent_jobs": jobs,
             "ready": ready,
         }
@@ -80,6 +85,21 @@ def read(db, resource):
                 db,
                 "operator_requests",
                 "SELECT id,job,created FROM operator_requests ORDER BY created DESC LIMIT 3",
+            ),
+            "job_history": rows(
+                db,
+                "job_events",
+                "SELECT job,previous_status,status,previous_error,error,observed FROM job_events ORDER BY id DESC LIMIT 8",
+            ),
+            "incidents": rows(
+                db,
+                "incidents",
+                "SELECT component,phase,code,message,job,opened,resolved,state FROM incidents ORDER BY opened DESC LIMIT 8",
+            ),
+            "historical_job_errors": rows(
+                db,
+                "jobs",
+                "SELECT id,status,error,created FROM jobs WHERE error IS NOT NULL ORDER BY created DESC LIMIT 5",
             ),
             "recent_outcomes": rows(
                 db,
@@ -121,13 +141,32 @@ def snapshot(db):
     queue = read(db, "queue")
     marker = ROOT / "data" / "meta-auth-health.json"
     auth = json.loads(marker.read_text()) if marker.exists() else {}
+    blockers = []
+    if cfg.get("emergency_pause"):
+        blockers.append("emergency_pause")
+    if not cfg.get("publishing_enabled"):
+        blockers.append("publishing_disabled")
+    if auth.get("valid") is False:
+        blockers.append("instagram_access_invalid")
+    if db.execute(
+        "SELECT 1 FROM jobs WHERE status IN ('publish_unknown','container_submitting')"
+    ).fetchone():
+        blockers.append("publication_outcome_unknown")
+    if queue["ready_count"] == 0:
+        blockers.append("no_staged_reel")
     return {
         "observed_at": now(),
-        "recent_tool_receipts": rows(
+        "current_publication_blockers": blockers,
+        "open_incidents": rows(
             db,
-            "action_receipts",
-            "SELECT action,phase,result,created FROM action_receipts ORDER BY created DESC LIMIT 3",
+            "incidents",
+            "SELECT component,phase,code,message,job,opened FROM incidents WHERE resolved IS NULL ORDER BY opened DESC LIMIT 5",
         ),
+        "schedule": {
+            "timezone": cfg.get("timezone"),
+            "slots": cfg.get("slots"),
+            "posts_per_day": cfg.get("posts_per_day"),
+        },
         "instagram_access": {k: auth.get(k) for k in ("valid", "reason", "checked_at")},
         "generation_enabled": cfg.get("generation_enabled"),
         "publishing_enabled": cfg.get("publishing_enabled"),

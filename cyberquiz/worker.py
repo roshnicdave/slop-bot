@@ -89,6 +89,9 @@ def run(db, row):
                 + "\nSources reviewed: "
                 + str(len(result["evidence"]["records"])),
             )
+        from .incidents import resolve
+
+        resolve(db, "worker", phase=parts[0])
         db.execute('UPDATE telegram_updates SET status="done" WHERE id=?', (ident,))
         db.commit()
     except Exception as exc:
@@ -97,7 +100,10 @@ def run(db, row):
             (type(exc).__name__, ident),
         )
         db.commit()
+        from .incidents import record
+
         reason = str(exc)[:220] if isinstance(exc, ValueError) else type(exc).__name__
+        record(db, "worker", parts[0], None, reason)
         send(
             user, "Stopped: " + reason + ". Progress is saved; no new post was retried."
         )
@@ -145,6 +151,9 @@ def main():
                             from .__main__ import tick
 
                             tick(db)
+                            from .incidents import resolve
+
+                            resolve(db, "worker", phase="maintenance")
                             due = deadline(config())
                         timeout = max(
                             0, (due - dt.datetime.now(dt.timezone.utc)).total_seconds()
@@ -153,6 +162,9 @@ def main():
                             wake.recv(4096)
                             due = dt.datetime.now(dt.timezone.utc)
                     except Exception as exc:
+                        from .incidents import record
+
+                        incident = record(db, "worker", "maintenance", None, type(exc).__name__)
                         try:
                             notify(
                                 db,
@@ -160,9 +172,9 @@ def main():
                                 + dt.datetime.now(dt.timezone.utc).date().isoformat()
                                 + ":"
                                 + type(exc).__name__,
-                                "Pipeline needs attention: "
-                                + type(exc).__name__
-                                + ". Ask me what is blocked.",
+                                json.dumps({"event": "maintenance_failed", "incident": incident,
+                                            "failure_type": type(exc).__name__,
+                                            "publication_attempted": "consult job phase and receipts"}),
                             )
                         except Exception:
                             pass

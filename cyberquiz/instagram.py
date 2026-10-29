@@ -120,6 +120,16 @@ def _publish(db, job, *, immediate=False):
                 },
             )
         except MetaAPIError as exc:
+            from .incidents import record
+
+            record(
+                db,
+                "instagram",
+                "access" if exc.code in (10, 190, 200) else "container_creation",
+                exc.code,
+                str(exc),
+                job,
+            )
             # A definite client rejection of creation cannot publish a Reel.
             # Transport failures and 5xx retain the uncertain phase.
             if 400 <= exc.http_status < 500:
@@ -161,10 +171,13 @@ def _publish(db, job, *, immediate=False):
         "POST", keys["IG_USER_ID"] + "/media_publish", data={"creation_id": container}
     )
     db.execute(
-        "UPDATE jobs SET media_id=?,status=?,published_at=? WHERE id=?",
+        "UPDATE jobs SET media_id=?,status=?,published_at=?,error=NULL WHERE id=?",
         (result["id"], "published", now(), job),
     )
     db.commit()
+    from .incidents import resolve
+
+    resolve(db, "instagram", job=job)
     (folder / "receipt.json").write_text(
         json.dumps({"media_id": result["id"], "published_at": now()})
     )

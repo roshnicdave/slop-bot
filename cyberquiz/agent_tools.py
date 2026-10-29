@@ -32,7 +32,7 @@ TOOLS = [
     ),
     tool(
         "set_publishing",
-        "Enable or pause scheduled publication.",
+        "Enable or pause the automatic schedule only. This does not submit a Reel for publication.",
         {"enabled": {"type": "boolean"}},
         ["enabled"],
     ),
@@ -56,7 +56,7 @@ TOOLS = [
     ),
     tool(
         "enqueue_work",
-        "Queue durable work on the autonomous worker. Publishing is immediate; ensure_ready maintains a single staged Reel.",
+        "Submit work for execution, rather than only changing settings. publish_next publishes the next ready Reel immediately; create_preview generates a preview; show_preview delivers it; research refreshes research; ensure_ready replenishes the queue. Publication must be enabled first. Completion is asynchronous.",
         {
             "task": {
                 "type": "string",

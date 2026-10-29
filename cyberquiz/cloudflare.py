@@ -66,9 +66,9 @@ def reserve(db, operation, kind, neurons):
         if category is None:
             raise ValueError("Unknown quota category")
         limit = {
-            "chat": c.get("cf_chat_neuron_limit", 3000),
+            "chat": c.get("cf_chat_neuron_limit", 4500),
             "voice": 3000,
-            "research": c.get("cf_research_neuron_limit", 4500),
+            "research": c.get("cf_research_neuron_limit", 3000),
         }[category]
         kinds = categories[category]
         used = db.execute(

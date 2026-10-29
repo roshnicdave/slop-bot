@@ -46,3 +46,19 @@ Media is temporary staging. Confirmed publication or preview delivery removes lo
 Tests cover the actual native function-call/result/reply cycle, executor state changes before confirmation, read-only conversation without a command router, enqueue deduplication, access controls, budget races, publication uncertainty, source proofs, media cleanup and repository hygiene. Live-model checks run against isolated database copies with side effects disabled.
 
 Primary design references: [Cloudflare function calling](https://developers.cloudflare.com/workers-ai/features/function-calling/traditional/), [Mistral model API](https://developers.cloudflare.com/workers-ai/models/mistral-small-3.1-24b-instruct/), [effective agents](https://www.anthropic.com/engineering/building-effective-agents), and [AWS idempotent APIs](https://aws.amazon.com/builders-library/making-retries-safe-with-idempotent-APIs/).
+
+Operational state is projected from the ledger, authorization health, and current settings.
+Historical job failures are available through activity inspection, rather than included as
+current queue failures. Job status/error transitions are audited in `job_events`.
+Phase-specific incidents have explicit open/resolved lifecycles; a successful credential
+health check resolves access incidents without silently enabling publication.
+
+The conversation context includes recent operator messages and current state. Prior AI
+operational claims are not treated as evidence. Native capability descriptions distinguish
+enabling the schedule from submitting an immediate publication request. Durable worker
+receipts distinguish acceptance from completion, and uncertain publication outcomes remain
+held against duplicate submission.
+
+The shared daily free allowance remains capped independently of category allocations.
+Default allocations allow 4,500 neurons for chat/control and 3,000 for research/editorial;
+provider-reported usage reconciles reservations when available. No paid fallback is enabled.

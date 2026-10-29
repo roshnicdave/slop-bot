@@ -31,6 +31,7 @@ class MetaHealthTests(unittest.TestCase):
                     return_value=Mock(json=lambda: {"data": {"is_valid": False}}),
                 ) as request,
                 patch("cyberquiz.auth_health.connect", return_value=db),
+                patch("cyberquiz.auth_health.access_incident"),
                 patch("cyberquiz.telegram.update_config") as update,
                 patch("cyberquiz.telegram.notify") as notify,
             ):

@@ -312,7 +312,7 @@ class FreeProviderTests(unittest.TestCase):
                     "cf_daily_neuron_limit": 8000,
                 },
             ):
-                free_reserve(db, "a", "chat", 3000)
+                free_reserve(db, "a", "chat", 4500)
                 with self.assertRaises(ValueError):
                     free_reserve(db, "b", "chat", 1)
                 free_reserve(db, "c", "voice", 2000)

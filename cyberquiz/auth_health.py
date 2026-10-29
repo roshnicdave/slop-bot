@@ -7,6 +7,20 @@ from .store import ROOT, connect, now, config
 from .providers import secrets
 
 
+def access_incident(valid, code=None):
+    from .incidents import record, resolve
+
+    db = connect()
+    try:
+        if valid:
+            resolve(db, "instagram", phase="access")
+        else:
+            record(db, "instagram", "access", code,
+                   "Instagram account authorization is unavailable.")
+    finally:
+        db.close()
+
+
 def check(*, force=False):
     k = secrets()
     stamp = k.get("IG_TOKEN_REFRESHED_AT")
@@ -26,6 +40,7 @@ def check(*, force=False):
                 from .telegram import update_config
 
                 update_config({"publishing_enabled": False})
+            access_incident(valid)
             return valid
     token = k.get("IG_ACCESS_TOKEN")
     if not token:
@@ -54,6 +69,7 @@ def check(*, force=False):
             from .telegram import update_config
 
             update_config({"publishing_enabled": False})
+            access_incident(False, error.get("code"))
             return False
         raise RuntimeError("Meta credential health check unavailable")
     expiry = [
@@ -78,6 +94,7 @@ def check(*, force=False):
     from .telegram import notify, update_config
 
     db = connect()
+    access_incident(valid)
     try:
         if not valid:
             update_config({"publishing_enabled": False})

@@ -114,6 +114,10 @@ def tick(db):
                 slot = due.isoformat()
                 if db.execute("SELECT 1 FROM jobs WHERE slot=?", (slot,)).fetchone():
                     continue
+                if db.execute(
+                    "SELECT 1 FROM jobs WHERE approved=1 AND status IN ('rendered','container_created') LIMIT 1"
+                ).fetchone():
+                    continue
                 count = db.execute("SELECT COUNT(*) FROM jobs").fetchone()[0]
                 make(db, recent=count % 3 == 2, slot=slot)
                 # Next tick will publish, provided approval and connection are ready.
@@ -130,6 +134,9 @@ def tick(db):
                 'SELECT id FROM jobs WHERE approved=1 AND status IN ("rendered","container_created") ORDER BY created LIMIT 1'
             ).fetchall():
                 publish(db, row["id"])
+        from .readiness import ensure
+
+        ensure(db)
 
 
 def report(db):

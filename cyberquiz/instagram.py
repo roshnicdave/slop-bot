@@ -143,12 +143,12 @@ def _publish(db, job, *, immediate=False):
             )
         except Exception:
             permalink = "https://www.instagram.com/" + cfg["account"] + "/"
-        from .telegram import notify, status_text
+        from .telegram import notify
 
         notify(
             db,
             "published:" + job,
-            "Posted: " + permalink + "\nVideo " + job + "\n" + status_text(db, True),
+            "Posted: " + permalink,
         )
     except Exception:
         # Publishing success stays recorded even if notification transport fails.
@@ -156,6 +156,9 @@ def _publish(db, job, *, immediate=False):
     from .maintenance import erase_media
 
     erase_media(folder)
+    from .wakeup import signal
+
+    signal()  # Refill readiness on the worker, outside this publication call.
     return result["id"]
 
 

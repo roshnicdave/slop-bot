@@ -45,3 +45,7 @@ Ordinary messages become typed intents against the same SQLite jobs and configur
 An explicit “post the next Reel now” request binds its Telegram update ID to a job in `operator_requests`. It selects the oldest eligible queued job, or generates one under a stable request slot when the queue is empty. It can bypass the scheduled clock/temporary scheduling hold for that request only. It cannot override pause, authorization, automatic quality gates, spending limits or unknown publication outcomes. The resulting post counts in the scheduler’s existing daily count and spacing checks. Redelivery does not create another post. No new Telegram menu command is advertised.
 
 This is a bounded autonomous workflow with model-driven editorial choices and conversational intent routing, not unrestricted self-modifying code. New operational capabilities still require implementation and tests; the bot must not claim actions outside its executor.
+
+## Readiness buffer
+
+The autonomous worker keeps one approved, rendered Reel staged when generation is enabled. Scheduled posting consumes that queue before creating more work; a confirmed publication wakes the worker to refill. Readiness attempts are durable, capped at daily cadence plus one, and back off after failure. Pause and unresolved production/publication states suppress refill. Budget and novelty/quality gates remain authoritative; readiness is not guaranteed during provider outages or exhausted quotas. Media is temporary staging until publication, not an archive.

@@ -40,3 +40,5 @@ FFmpeg and system fonts are required. Inter is bundled with its OFL license. Cre
 
 Local setup: copy `config.example.json` to `config.json`, `cloudflare/wrangler.example.jsonc` to `cloudflare/wrangler.jsonc`, and `deploy/aws.example.json` to `deploy/aws.local.json`. Fill in account, recipients, endpoint and deployment identity locally. These mutable files are ignored by Git; examples contain no account-specific IDs. Generation and publishing start disabled.
 The live `deploy/Caddyfile` is ignored too; copy `deploy/Caddyfile.example` and set your hostname/contact before deploying the media host.
+
+The worker maintains one ready Reel and refills after confirmed publication, subject to budget, novelty and quality checks. Publication notifications contain the post link and go to both authorized Telegram chats.

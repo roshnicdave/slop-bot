@@ -84,18 +84,33 @@ def daily(db):
     folder.mkdir(exist_ok=True)
     path = folder / (day + ".json")
     if path.exists():
-        return json.loads(path.read_text())
+        result = json.loads(path.read_text())
+        from .social_signals import observe, analyze
+
+        observe(db, result)
+        result["measured_signals"] = analyze(db)
+        return result
     result = gather(db)
     # Retry missing auth on a later tick after credentials are connected.
     if secrets().get("IG_ACCESS_TOKEN"):
         path.write_text(json.dumps(result, indent=2))
+    from .social_signals import observe, analyze
+
+    observe(db, result)
+    result["measured_signals"] = analyze(db)
     return result
 
 
 def brief(result):
     """Never send whole comment feeds or long captions into a control prompt."""
+    signals = dict(result.get("measured_signals", {}))
+    signals["candidate_videos"] = [
+        {**item, "caption": item.get("caption", "")[:180]}
+        for item in signals.get("candidate_videos", [])[:3]
+    ]
     out = {
         "limitations": result.get("limitations", [])[:4],
+        "measured_signals": signals,
         "posts": [],
         "comments": [],
     }

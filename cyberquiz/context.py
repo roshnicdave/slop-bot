@@ -115,7 +115,10 @@ def read(db, resource):
     if resource == "research":
         paths = sorted((ROOT / "data" / "research").glob("*-v2.json"))
         latest = json.loads(paths[-1].read_text()) if paths else {}
+        from .social_signals import analyze
+
         return {
+            "social_observations": analyze(db),
             "day": latest.get("day"),
             "ideas": latest.get("ideas", [])[:2],
             "limitations": latest.get("limitations"),

@@ -66,3 +66,13 @@ provider-reported usage reconciles reservations when available. No paid fallback
 Quota rejection happens before provider submission. Conversations defer to the UTC reset
 and retain their next model step and completed tool results, so resuming does not repeat
 completed work. Unknown provider outcomes remain failed rather than retried blindly.
+
+Public competitor observations run once per UTC day independently of idea-generation
+inference. A bounded 90-day text ledger records public video engagement snapshots and
+computes observed growth between visits. Candidates compare against the same account's
+similarly aged videos only when at least three peers exist. Missing counts/baselines
+remain unknown. The daily editorial prompt receives a compact measured brief, and
+Telegram research inspection can read the same ledger. These observations do not include
+competitor reach, retention, shares, or automatic visual/audio inspection; video media
+types alone do not verify a post is a Reel. Eligible reference accounts remain runtime
+configuration, not a fixed discovery universe or a claim to observe all niche trends.

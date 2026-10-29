@@ -6,7 +6,7 @@ Updated 2026-10-28. Credentials and private conversations never belong in source
 
 Build the autonomous system on the existing AWS Lightsail server. Telegram is its operational interface; Codex is not a daily operator. Research primary cybersecurity/networking sources daily, select diagnostic puzzles, verify the answer, render narrated Reels, publish through the official API and learn from measured outcomes. No routine human content approvals.
 
-Target two posts daily. Posting times are recorded experiments based on account observations, never claims of guaranteed optimal hours. Both generation and publication are currently paused for refinement; do not resume silently. An additional publication guard runs until 2026-10-29 09:00 America/Los_Angeles.
+Target two posts daily. Posting times are recorded experiments based on account observations, never claims of guaranteed optimal hours. The owner approved the latest navy preview and explicitly enabled autonomous generation and publication on 2026-10-28. An additional publication guard runs until 2026-10-29 09:00 America/Los_Angeles.
 
 ## Content and presentation
 
@@ -40,7 +40,7 @@ Target two posts daily. Posting times are recorded experiments based on account 
 - Authorized users: owner 8010764520 and friend 8861370667. Both share one queue and budget. Other users/groups cannot control it.
 - Advertise only /budget. Normal chat supports concise status, preferences, pause/resume, scheduling and production controls through the LLM; deterministic budget/status paths remain fast.
 - Send previews and non-publication alerts only to the owner. Notify both registered private chats after confirmed publication, including the post link.
-- Instagram @cybersec.peter is connected through the verified Page credential. First confirmed Reel: https://www.instagram.com/reel/DfEK7ayDdup/. Posting is intentionally paused, not blocked on onboarding.
+- Instagram @cybersec.peter is connected through the verified Page credential. First confirmed Reel: https://www.instagram.com/reel/DfEK7ayDdup/. Autonomous posting is enabled; Telegram controls the live state.
 
 ## Repository
 

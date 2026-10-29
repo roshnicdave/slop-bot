@@ -30,12 +30,12 @@ def graph(method, path, **kwargs):
     )
 
 
-def publish(db, job):
+def publish(db, job, *, immediate=False):
     with worker_lock():
-        return _publish(db, job)
+        return _publish(db, job, immediate=immediate)
 
 
-def _publish(db, job):
+def _publish(db, job, *, immediate=False):
     cfg = config()
     keys = secrets()
     if not cfg["publishing_enabled"]:
@@ -45,7 +45,11 @@ def _publish(db, job):
     import datetime as dt
 
     hold = cfg.get("publishing_not_before")
-    if hold and dt.datetime.now(dt.timezone.utc) < dt.datetime.fromisoformat(hold):
+    if (
+        not immediate
+        and hold
+        and dt.datetime.now(dt.timezone.utc) < dt.datetime.fromisoformat(hold)
+    ):
         raise ValueError("Posting is held until the configured resume time")
     row = db.execute("SELECT * FROM jobs WHERE id=?", (job,)).fetchone()
     if (

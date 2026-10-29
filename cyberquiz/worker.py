@@ -14,7 +14,11 @@ def run(db, row):
     command = row["command"]
     parts = command.split(maxsplit=1)
     try:
-        if parts[0] == "/next":
+        if parts[0] == "/publish-next":
+            from .operator import publish_next
+
+            publish_next(db, ident)
+        elif parts[0] == "/next":
             from .production import make
 
             # An update ID is a stable idempotency key, not a new job on retry.
@@ -83,11 +87,9 @@ def run(db, row):
             (type(exc).__name__, ident),
         )
         db.commit()
+        reason = str(exc)[:220] if isinstance(exc, ValueError) else type(exc).__name__
         send(
-            user,
-            "The job stopped ("
-            + type(exc).__name__
-            + "). State and reservations are saved. I did not switch to a paid fallback. Ask for status to inspect what completed.",
+            user, "Stopped: " + reason + ". Progress is saved; no new post was retried."
         )
 
 

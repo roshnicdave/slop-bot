@@ -169,9 +169,42 @@ def status_text(db, budget_only=False):
     latest = db.execute(
         "SELECT id,status FROM jobs ORDER BY created DESC LIMIT 1"
     ).fetchone()
-    return f"Generation: {generation}. Posting: {publication}." + (
-        f"\nLatest video: {latest['id']} ({latest['status']})." if latest else ""
+    ready = db.execute(
+        "SELECT COUNT(*) FROM jobs WHERE approved=1 AND status IN ('rendered','container_created')"
+    ).fetchone()[0]
+    uncertain = db.execute(
+        "SELECT COUNT(*) FROM jobs WHERE status IN ('publish_unknown','container_submitting')"
+    ).fetchone()[0]
+    active = db.execute(
+        "SELECT command,status FROM telegram_updates WHERE status IN ('queued','running') ORDER BY id LIMIT 1"
+    ).fetchone()
+    result = f"Generation: {generation}. Posting: {publication}."
+    result += (
+        f"\nReady to post: {ready}. Schedule: "
+        + ", ".join(c["slots"][: c["posts_per_day"]])
+        + " ("
+        + c["timezone"]
+        + ")."
     )
+    if uncertain:
+        result += "\nPosting blocked: an earlier publication needs reconciliation."
+    if active:
+        labels = {
+            "/publish-next": "Post next Reel",
+            "/next": "Make preview",
+            "/research": "Research",
+            "/preview": "Send preview",
+        }
+        result += (
+            "\nCurrent request: "
+            + labels.get(active["command"].split()[0], "Background task")
+            + " ("
+            + active["status"]
+            + ")."
+        )
+    elif latest:
+        result += f"\nLatest video: {latest['id']} ({latest['status']})."
+    return result
 
 
 def handle(db, update):

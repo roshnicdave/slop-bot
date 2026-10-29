@@ -31,3 +31,5 @@ After confirmed Telegram preview delivery, retain the file ID and erase local me
 Credentials remain outside Git in a private file. Meta's Page token currently has no scheduled token expiry, but its data-access deadline and revocation still matter; the service checks them daily. Reauthorization may require the owner. Do not transmit Instagram credentials to an AI provider.
 
 Only confirmed-publication notifications go to both registered authorized chats. Previews, failures and unsolicited updates go to the owner. Ordinary interactive replies stay with the chat that requested them.
+
+Use normal Telegram messages such as “post the next reel now”, “show the latest preview”, “pause”, “resume”, and “what’s happening?”. Immediate publication selects a ready job or makes one if needed, without changing the recurring schedule. It overrides the scheduled time only; all other publication and budget checks still apply. Hypothetical discussion does not authorize publication. An interrupted/unknown publication is retained for reconciliation rather than automatically resubmitted.

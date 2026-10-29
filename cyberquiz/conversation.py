@@ -14,6 +14,7 @@ ACTIONS = [
     "status",
     "budget",
     "request_video",
+    "publish_next",
     "show_preview",
     "explain",
     "pause",
@@ -73,7 +74,7 @@ def process(ident):
             "status": status_text(db),
             "jobs": summary,
             "policy": "Cloudflare LLMs use the free daily quota. The selected premium male voice is metered within the shared monthly spending cap; no paid model fallback. Both users share the queue. Posting requires Instagram authorization and automatic quality gates. No routine human approvals. No guarantee of virality. New visuals show a diagram, 4 choices, AI voice, answer and fix.",
-            "capabilities": "daily primary-source discovery of new topics, 50-Reel concept cooldown and persistent history; executable or source-grounded fact checks; free male voice; local rendering; no automatic competitor video vision yet",
+            "capabilities": "daily primary-source discovery of new topics, 50-Reel concept cooldown and persistent history; executable or source-grounded fact checks; selected male narration; local rendering; no automatic competitor video vision yet",
         }
         started = time.monotonic()
         out = chat.propose(db, "chat:" + str(ident), message, context, user)
@@ -117,17 +118,18 @@ def process(ident):
                 reply = execute(action, out)
             except ValueError as exc:
                 reply = str(exc)
-        elif action in ("request_video", "show_preview", "research"):
+        elif action in ("request_video", "show_preview", "research", "publish_next"):
             if (
-                action == "request_video"
+                action in ("request_video", "publish_next")
                 and db.execute(
-                    'SELECT COUNT(*) FROM telegram_updates WHERE status IN ("queued","running") AND command LIKE "/next%"'
+                    'SELECT COUNT(*) FROM telegram_updates WHERE status IN ("queued","running") AND command IN ("/next", "/publish-next")'
                 ).fetchone()[0]
             ):
-                reply = "A video is already in progress. I’ll send it when ready."
+                reply = "A video request is already in progress. Ask for status to follow it."
             else:
                 cmd = {
                     "request_video": "/next",
+                    "publish_next": "/publish-next",
                     "show_preview": "/preview",
                     "research": "/research",
                 }[action]
@@ -169,7 +171,9 @@ def process(ident):
 
                 signal()
                 reply = "I will " + (
-                    "make the video and send it here."
+                    "post the next eligible Reel; if the queue is empty, make one first."
+                    if action == "publish_next"
+                    else "make the video and send it here."
                     if action == "request_video"
                     else "send that here shortly."
                 )

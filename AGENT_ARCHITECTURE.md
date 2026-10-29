@@ -37,3 +37,11 @@ No system can promise unlimited interesting, true questions or virality. New top
 - [AWS: Making retries safe with idempotent APIs](https://aws.amazon.com/builders-library/making-retries-safe-with-idempotent-APIs/): persisted operation identity and uncertain outcomes.
 
 These sources support engineering practices, not claims that a particular hook, color or posting time causes reach.
+
+## Telegram as the operating interface
+
+Ordinary messages become typed intents against the same SQLite jobs and configuration used by autonomous scheduling. The conversational process acknowledges durable work quickly; production and publishing run in the separate worker. There is no second chatbot-owned queue. Status reads actual job state, queue readiness, active requests and unresolved publication outcomes.
+
+An explicit “post the next Reel now” request binds its Telegram update ID to a job in `operator_requests`. It selects the oldest eligible queued job, or generates one under a stable request slot when the queue is empty. It can bypass the scheduled clock/temporary scheduling hold for that request only. It cannot override pause, authorization, automatic quality gates, spending limits or unknown publication outcomes. The resulting post counts in the scheduler’s existing daily count and spacing checks. Redelivery does not create another post. No new Telegram menu command is advertised.
+
+This is a bounded autonomous workflow with model-driven editorial choices and conversational intent routing, not unrestricted self-modifying code. New operational capabilities still require implementation and tests; the bot must not claim actions outside its executor.

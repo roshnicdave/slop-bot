@@ -32,7 +32,13 @@ def run(db, ident, user, message, *, turn=None, executor=None):
         "CREATE TABLE IF NOT EXISTS action_receipts(operation TEXT PRIMARY KEY,action TEXT,phase TEXT,result TEXT,created TEXT)"
     )
     db.commit()
-    for step in range(6):
+    db.execute("CREATE TABLE IF NOT EXISTS agent_sessions(update_id INTEGER PRIMARY KEY,messages TEXT,step INTEGER)")
+    saved = db.execute("SELECT messages,step FROM agent_sessions WHERE update_id=?", (ident,)).fetchone()
+    first_step = saved["step"] if saved else 0
+    if saved:
+        messages = json.loads(saved["messages"])
+    db.commit()
+    for step in range(first_step, 6):
         output = turn(db, "agent:" + str(ident) + ":" + str(step), messages, TOOLS)
         calls = output.get("tool_calls") or []
         if not calls:
@@ -89,6 +95,9 @@ def run(db, ident, user, message, *, turn=None, executor=None):
                     )[:6500],
                 }
             )
+        db.execute("INSERT OR REPLACE INTO agent_sessions VALUES(?,?,?)",
+                   (ident, json.dumps(messages), step + 1))
+        db.commit()
     raise RuntimeError("Agent capability budget exhausted; completed work is preserved")
 
 

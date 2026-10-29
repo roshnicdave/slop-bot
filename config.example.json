@@ -35,7 +35,7 @@
   "voice_speaker": "orion",
   "novelty_cooldown_reels": 50,
   "source_discovery_enabled": true,
-  "cf_chat_neuron_limit": 4500,
+  "cf_chat_neuron_limit": 8000,
   "cf_research_neuron_limit": 3000,
   "preview_voice_experiment_cap_usd": 0.06,
   "telegram_owner_user_id": null,

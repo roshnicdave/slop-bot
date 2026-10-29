@@ -91,3 +91,27 @@ class AgentLoopTests(unittest.TestCase):
             self.assertEqual(seen, ["what will be published?"])
             self.assertEqual(result, "The ready Reel covers subnet masks.")
             db.close()
+
+    def test_quota_deferral_resumes_after_tools_without_repeating_them(self):
+        from cyberquiz.cloudflare import FreeQuotaDeferred
+        with tempfile.TemporaryDirectory() as folder:
+            db = connect(Path(folder) / "db")
+            tables(db)
+            executed = []
+            def executor(db, ident, user, name, args):
+                executed.append(name)
+                return {"saved_id": 1}
+            def limited(db, op, messages, tools):
+                if op.endswith(":0"):
+                    return {"tool_calls": [{"name": "save_preference", "arguments": {"text": "More varied subjects"}}]}
+                raise FreeQuotaDeferred("Wait for free reset")
+            def recovered(db, op, messages, tools):
+                self.assertTrue(op.endswith(":1"))
+                self.assertEqual(messages[-1]["role"], "tool")
+                return {"content": "Saved your advice."}
+            with patch("cyberquiz.agent.snapshot", return_value={}):
+                with self.assertRaises(FreeQuotaDeferred):
+                    run(db, 9, 1001, "More varied subjects", turn=limited, executor=executor)
+                self.assertEqual(run(db, 9, 1001, "More varied subjects", turn=recovered, executor=executor), "Saved your advice.")
+            self.assertEqual(executed, ["save_preference"])
+            db.close()

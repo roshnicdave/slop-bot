@@ -60,5 +60,9 @@ receipts distinguish acceptance from completion, and uncertain publication outco
 held against duplicate submission.
 
 The shared daily free allowance remains capped independently of category allocations.
-Default allocations allow 4,500 neurons for chat/control and 3,000 for research/editorial;
+Chat/control may use the shared allowance; research/editorial is capped at 3,000 neurons;
 provider-reported usage reconciles reservations when available. No paid fallback is enabled.
+
+Quota rejection happens before provider submission. Conversations defer to the UTC reset
+and retain their next model step and completed tool results, so resuming does not repeat
+completed work. Unknown provider outcomes remain failed rather than retried blindly.

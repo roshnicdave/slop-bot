@@ -310,6 +310,7 @@ class FreeProviderTests(unittest.TestCase):
                 return_value={
                     "cf_free_plan_confirmed": True,
                     "cf_daily_neuron_limit": 8000,
+                    "cf_chat_neuron_limit": 4500,
                 },
             ):
                 free_reserve(db, "a", "chat", 4500)

@@ -17,6 +17,10 @@ VOICE = "@cf/deepgram/aura-1"
 EDITOR = "@cf/mistralai/mistral-small-3.1-24b-instruct"
 
 
+class FreeQuotaDeferred(ValueError):
+    """No provider request was submitted; safe to defer until allowance resets."""
+
+
 def available():
     k = secrets()
     return bool(
@@ -52,7 +56,7 @@ def reserve(db, operation, kind, neurons):
             (day,),
         ).fetchone()[0]
         if total + neurons > int(c.get("cf_daily_neuron_limit", 8000)):
-            raise ValueError(
+            raise FreeQuotaDeferred(
                 "Shared Cloudflare free allowance reserved; wait until UTC reset"
             )
         categories = {
@@ -66,7 +70,7 @@ def reserve(db, operation, kind, neurons):
         if category is None:
             raise ValueError("Unknown quota category")
         limit = {
-            "chat": c.get("cf_chat_neuron_limit", 4500),
+            "chat": c.get("cf_chat_neuron_limit", c.get("cf_daily_neuron_limit", 8000)),
             "voice": 3000,
             "research": c.get("cf_research_neuron_limit", 3000),
         }[category]
@@ -78,7 +82,7 @@ def reserve(db, operation, kind, neurons):
             [day, *kinds],
         ).fetchone()[0]
         if used + neurons > limit:
-            raise ValueError(
+            raise FreeQuotaDeferred(
                 "Free "
                 + category
                 + " quota reserved; production/control allowance is protected"

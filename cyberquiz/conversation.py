@@ -1,6 +1,8 @@
 """Telegram transport for the single conversational agent loop."""
 
 import concurrent.futures
+import datetime as dt
+import json
 import time
 
 from .store import connect, config, transaction
@@ -38,6 +40,14 @@ def process(ident):
         send(user, reply)
         mark_replied(db, ident)
     except Exception as exc:
+        from .cloudflare import FreeQuotaDeferred
+
+        if isinstance(exc, FreeQuotaDeferred):
+            reset = (dt.datetime.now(dt.timezone.utc).date() + dt.timedelta(days=1)).isoformat() + "T00:00:00+00:00"
+            db.execute('UPDATE telegram_updates SET status="chat_deferred",result=? WHERE id=?',
+                       (json.dumps({"reason": str(exc), "retry_at": reset}), ident))
+            db.commit()
+            return
         # Never replay tool calls after a failed reply; their receipts survive.
         db.execute(
             'UPDATE telegram_updates SET status="failed",result=? WHERE id=?',
@@ -60,6 +70,9 @@ def main():
         pending = {}
         while True:
             pending = {p: u for p, u in pending.items() if not p.done()}
+            db.execute("UPDATE telegram_updates SET status='queuedchat' WHERE status='chat_deferred' AND json_extract(result,'$.retry_at')<=?",
+                       (dt.datetime.now(dt.timezone.utc).isoformat(),))
+            db.commit()
             if len(pending) < 2:
                 with transaction(db):
                     rows = db.execute(

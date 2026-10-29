@@ -44,5 +44,14 @@
   "voice_provider": "elevenlabs",
   "premium_voice_speaker": "Chris",
   "palette": "ink",
-  "adaptive_posting_times": true
+  "adaptive_posting_times": true,
+  "trend_discovery_enabled": true,
+  "discovery_hashtags": [
+    "cybersecurity",
+    "computernetworking",
+    "ccna",
+    "networksecurity"
+  ],
+  "trend_topics_per_day": 4,
+  "trend_visual_inspection_enabled": true
 }

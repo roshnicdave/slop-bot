@@ -47,12 +47,6 @@ def tick(db):
                 content.refresh_sources(db)
             except Exception:
                 pass  # primary-source outage must not block verified queued posts
-        from .social import daily as social_daily
-
-        try:
-            social_daily(db)
-        except Exception:
-            pass  # Social observation failure must not block verified ready content.
         research_ok = True
         if cfg.get("generation_enabled") and not cfg.get("emergency_pause"):
             from .scout import daily

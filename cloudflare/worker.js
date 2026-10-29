@@ -1,5 +1,7 @@
 const CHAT = '@cf/meta/llama-3.1-8b-instruct-fp8-fast';
 const EDITOR = '@cf/mistralai/mistral-small-3.1-24b-instruct';
+const VISION = '@cf/meta/llama-3.2-11b-vision-instruct';
+const ASR = '@cf/openai/whisper';
 const VOICE = '@cf/deepgram/aura-1';
 export default {
   async fetch(request, env) {
@@ -9,11 +11,29 @@ export default {
     if (request.method !== 'POST' || new URL(request.url).pathname !== '/run')
       return new Response('Not found', {status:404});
     const raw = await request.text();
-    if (raw.length > 48000) return new Response('Too large', {status:413});
+    if (raw.length > 600000) return new Response('Too large', {status:413});
     let data;
     try {data=JSON.parse(raw);} catch {return new Response('Bad JSON',{status:400});}
     const {model,input}=data;
-    if (![CHAT,EDITOR,VOICE].includes(model) || !input) return new Response('Model denied',{status:400});
+    if (![CHAT,EDITOR,VOICE,VISION,ASR].includes(model) || !input) return new Response('Model denied',{status:400});
+    if (model === VISION || model === ASR) {
+      const bytes = model === VISION ? input.image : input.audio;
+      const agreement = model === VISION && input.prompt === 'agree';
+      if (!agreement && (!Array.isArray(bytes) || bytes.length > 120000 ||
+          bytes.some(n => !Number.isInteger(n) || n < 0 || n > 255)))
+        return new Response('Media profile denied',{status:400});
+      if (model === VISION && (typeof input.prompt !== 'string' || input.prompt.length > 2500 ||
+          !Number.isInteger(input.max_tokens) || input.max_tokens < 1 || input.max_tokens > 450))
+        return new Response('Vision profile denied',{status:400});
+      try {
+        const options = model === VISION
+          ? {prompt:input.prompt, ...(agreement ? {} : {image:bytes}), max_tokens:input.max_tokens, temperature:0.1}
+          : {audio:bytes};
+        const result = await env.AI.run(model,options);
+        return Response.json({success:true,result});
+      } catch(error) {return Response.json({success:false,error:String(error.message).slice(0,400)},{status:502});}
+    }
+    if (raw.length > 48000) return new Response('Too large',{status:413});
     if (model === CHAT || model === EDITOR) {
       if (!Array.isArray(input.messages) || input.messages.length>24 ||
           !Number.isInteger(input.max_tokens) || input.max_tokens<1 || input.max_tokens>1400)

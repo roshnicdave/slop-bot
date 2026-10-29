@@ -1,0 +1,9 @@
+[Unit]
+Description=Daily cross-account Reel research
+[Timer]
+OnBootSec=10min
+OnCalendar=*-*-* 03:17:00 UTC
+Persistent=true
+Unit=cyberquiz-research.service
+[Install]
+WantedBy=timers.target

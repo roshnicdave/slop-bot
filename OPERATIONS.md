@@ -2,7 +2,7 @@
 
 ## Runtime
 
-The four services are `cyberquiz-telegram`, `cyberquiz-conversation`, `cyberquiz-worker` and `cyberquiz-media`. Telegram is the operational interface. Only `/budget` appears in its command menu. Natural-language requests cover status, pause/resume, publishing, schedule overrides, lower budgets, research, ideas and previews.
+The four long-running services are `cyberquiz-telegram`, `cyberquiz-conversation`, `cyberquiz-worker` and `cyberquiz-media`. A separate daily `cyberquiz-research.timer` runs bounded topic-wide discovery. Telegram is the operational interface. Only `/budget` appears in its command menu. Natural-language requests cover status, pause/resume, publishing, schedule overrides, lower budgets, research, ideas and previews.
 
 During refinement, scheduled generation/publication stay paused. A `publishing_not_before` timestamp additionally prevents premature posting. A fixed schedule entered through Telegram disables adaptive posting times. Never clear an operator pause during deployment.
 
@@ -33,3 +33,17 @@ Credentials remain outside Git in a private file. Meta's Page token currently ha
 Only confirmed-publication notifications go to both registered authorized chats. Previews, failures and unsolicited updates go to the owner. Ordinary interactive replies stay with the chat that requested them.
 
 Use normal Telegram messages such as “post the next reel now”, “show the latest preview”, “pause”, “resume”, and “what’s happening?”. Immediate publication selects a ready job or makes one if needed, without changing the recurring schedule. It overrides the scheduled time only; all other publication and budget checks still apply. Hypothetical discussion does not authorize publication. An interrupted/unknown publication is retained for reconciliation rather than automatically resubmitted.
+
+## Topic-wide discovery
+
+`cyberquiz-research.timer` starts the isolated research oneshot daily at 03:17 UTC and
+after boot. It observes top/recent Reel samples across hashtag searches rather than only
+following a competitor watchlist. Install the matching service/timer from `deploy/`, run
+`systemctl daemon-reload`, and enable the timer. The selected Workers AI vision model
+requires its documented one-time license agreement before use. Research uses the same
+free shared neuron ledger, with no paid fallback. The service has separate CPU/memory
+limits and cannot publish or send Telegram messages. Disable it with the timer or the
+`trend_discovery_enabled` runtime setting. `discovery_hashtags` seeds discovery; validated
+research suggestions extend the topic frontier automatically. Use the research capability
+to inspect dated findings and availability limitations. Discovery API outages must not
+block the ready publication queue.

@@ -33,7 +33,7 @@ def graph(method, path, **kwargs):
         method,
         f"https://{host}/{cfg['graph_version']}/{path}",
         headers={"Authorization": "Bearer " + keys["IG_ACCESS_TOKEN"]},
-        timeout=45,
+        timeout=kwargs.pop("timeout", 45),
         **kwargs,
     )
     if not response.ok:

@@ -71,6 +71,9 @@ def gather(db):
     from .social import daily as social_daily, brief
 
     social = brief(social_daily(db))
+    from .trends import brief as trend_brief
+
+    social["topic_wide_discovery"] = trend_brief(db)
     return {
         "social": social,
         "reference_observations": observations,

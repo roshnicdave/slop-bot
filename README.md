@@ -42,3 +42,12 @@ Local setup: copy `config.example.json` to `config.json`, `cloudflare/wrangler.e
 The live `deploy/Caddyfile` is ignored too; copy `deploy/Caddyfile.example` and set your hostname/contact before deploying the media host.
 
 The worker maintains one ready Reel and refills after confirmed publication, subject to budget, novelty and quality checks. Publication notifications contain the post link and go to both authorized Telegram chats.
+
+Daily niche research searches Instagram hashtag top/recent feeds across accounts and
+expands through discovered public creator mentions. It selects examples for relevance
+and presentation, inspects one accessible clip through sampled frames/transcribed audio,
+and feeds dated text observations into editorial planning. The independent research
+oneshot preserves publishing responsiveness, shares the free AI ledger, and keeps no
+research media. Counts and sampled observations are evidence for experiments, not proof
+of virality. New explainer/animation production formats require renderer support; finding
+them during research does not automatically make them available for publishing.

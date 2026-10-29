@@ -7,7 +7,7 @@ CATALOG = {
     "queue": "Ready/published job counts, recent jobs and current production stages.",
     "preferences": "Persisted operator advice with IDs, timestamps and how production uses it.",
     "activity": "Queued/running operator work, recent outcomes and readiness refill attempts.",
-    "research": "Most recent saved daily research and source-discovery outcomes.",
+    "research": "Latest topic-wide Reel discovery, sampled visual findings, and primary-source editorial research.",
     "experiments": "Current content experiments and recorded outcomes.",
     "budget": "Live paid reservations and free quota accounting.",
 }
@@ -116,8 +116,10 @@ def read(db, resource):
         paths = sorted((ROOT / "data" / "research").glob("*-v2.json"))
         latest = json.loads(paths[-1].read_text()) if paths else {}
         from .social_signals import analyze
+        from .trends import brief as trend_brief
 
         return {
+            "topic_wide_reel_discovery": trend_brief(db),
             "social_observations": analyze(db),
             "day": latest.get("day"),
             "ideas": latest.get("ideas", [])[:2],

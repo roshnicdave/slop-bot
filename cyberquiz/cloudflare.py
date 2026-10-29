@@ -14,6 +14,8 @@ from .network import http
 
 LLM = "@cf/meta/llama-3.1-8b-instruct-fp8-fast"
 VOICE = "@cf/deepgram/aura-1"
+VISION = "@cf/meta/llama-3.2-11b-vision-instruct"
+ASR = "@cf/openai/whisper"
 EDITOR = "@cf/mistralai/mistral-small-3.1-24b-instruct"
 
 
@@ -101,7 +103,7 @@ def reserve(db, operation, kind, neurons):
 
 def request(db, operation, kind, model, body, neurons):
     # No Gateway credits, paid models, model switching, or external paid fallback.
-    if model not in (LLM, EDITOR, VOICE):
+    if model not in (LLM, EDITOR, VOICE, VISION, ASR):
         raise ValueError("Model is outside the free-only allowlist")
     reserve(db, operation, kind, neurons)
     k = secrets()

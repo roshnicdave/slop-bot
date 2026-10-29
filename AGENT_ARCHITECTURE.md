@@ -76,3 +76,30 @@ Telegram research inspection can read the same ledger. These observations do not
 competitor reach, retention, shares, or automatic visual/audio inspection; video media
 types alone do not verify a post is a Reel. Eligible reference accounts remain runtime
 configuration, not a fixed discovery universe or a claim to observe all niche trends.
+
+Topic-wide discovery uses Instagram's official hashtag top/recent media APIs across
+accounts. Four configured topics seed a frontier; the research LLM may propose new,
+validated topic searches for later runs. Query attempts are persisted and constrained
+to four per day and 24 unique topics per rolling week, below Meta's 30-topic ceiling.
+Only Reel permalinks enter the candidate set. Public engagement is a shortlist heuristic,
+not a claim of verified reach or a causal explanation of virality.
+
+The dedicated daily `cyberquiz-research` oneshot process keeps slow discovery and media
+analysis outside publishing and Telegram. A small caption shortlist is selected for
+niche relevance and diversity. At most one accessible public clip per day is inspected:
+three timestamped frames through Cloudflare vision and up to 18 seconds of audio through
+Cloudflare speech recognition. Notes explicitly distinguish observed visuals/transcript
+from unknown voice tone, accent, music, retention and full-video pacing. Missing licensed
+or download-disabled media stays metadata-only; access restrictions are not bypassed.
+Downloads are streamed, size/host/duration/resolution bounded, decoded with one thread,
+and removed with the temporary directory. Only text notes, URLs and public counts persist.
+These observations enter the daily editorial evidence and Telegram research inspection;
+independent primary-source factual validation still gates the produced Reel.
+
+Public caption mentions also seed a creator frontier. Up to two discovered eligible
+creators' public Reel histories are read per day, allowing older examples to enter the
+shortlist instead of treating only today's posts as popular references. Accounts are
+validated through the official API and the relevance selector; they are not a fixed
+hardcoded watchlist. Missing media access stays missing. Vision prose is normalized in
+a separate bounded free inference step when necessary; completed inference results are
+reused rather than resubmitted. Original technical claims still require primary evidence.

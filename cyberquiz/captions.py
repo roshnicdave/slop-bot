@@ -6,6 +6,24 @@ def hashtags(p):
         str(p.get(k, "")) for k in ("family", "topic", "core_claim", "question")
     ).lower()
     tags = ["#CyberSecurity", "#Networking"]
+    if any(
+        word in text
+        for word in (
+            "vlan",
+            "route",
+            "routing",
+            "subnet",
+            "dns",
+            "arp",
+            "dhcp",
+            "switch",
+            "acl",
+            "nat ",
+        )
+    ):
+        tags.extend(["#CCNA", "#CCNP"])
+    elif any(word in text for word in ("phishing", "tls", "firewall", "certificate")):
+        tags.append("#SecurityPlus")
     for keywords, tag in [
         ("dns", "#DNS"),
         ("vlan", "#VLAN"),

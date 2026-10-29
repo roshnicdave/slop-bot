@@ -191,7 +191,7 @@ def frame(p, stage="question", remaining=None, phase=0, progress=0, subtitle=Non
         size = 43
         while F(size, True).getlength(line) > 590:
             size -= 1
-        text(d, line, 360, 137 + n * 57, size, fg, True, center=True)
+        text(d, line, 360, 177 + n * 57, size, fg, True, center=True)
     if dark and p["diagram"]["kind"] in ("switch", "flow"):
         d.rounded_rectangle((60, 366, 660, 623), radius=16, fill="white")
     diagram(d, p, stage == "fix")
@@ -225,12 +225,23 @@ def frame(p, stage="question", remaining=None, phase=0, progress=0, subtitle=Non
                 size -= 1
             text(d, answer, 144, y + 16, size, GREEN if correct else fg, True)
         if stage == "question":
-            d.rounded_rectangle((74, 1020, 646, 1026), radius=3, fill="#edf1f4")
+            d.rounded_rectangle((74, 1020, 580, 1026), radius=3, fill="#edf1f4")
             d.rounded_rectangle(
-                (74, 1020, 74 + max(1, int(572 * (1 - progress))), 1026),
+                (74, 1020, 74 + max(1, int(506 * (1 - progress))), 1026),
                 radius=3,
                 fill="#ffca68" if dark else "#2c718f",
             )
+            if remaining is not None:
+                text(
+                    d,
+                    str(max(1, int(remaining))) + "s",
+                    616,
+                    1002,
+                    24,
+                    fg,
+                    True,
+                    center=True,
+                )
             text(d, "Comment your answer.", 360, 1067, 25, fg, True, center=True)
         else:
             text(d, p["explanation"], 360, 1020, 24, fg, width=580, center=True)

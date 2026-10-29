@@ -14,3 +14,14 @@ research/*.png
 research/*.jpg
 
 cloudflare/.wrangler/
+
+# Local deployment identity and mutable runtime settings
+/config.json
+/config.defaults.json
+/cloudflare/wrangler.jsonc
+/deploy/aws.local.json
+.env.*
+!.env.example
+/cloudflare/.dev.vars*
+*.key
+/deploy/Caddyfile

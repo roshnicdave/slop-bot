@@ -1,4 +1,5 @@
 """Durable budget reservations. Unknown/failed charges remain fully reserved."""
+
 import contextlib
 import datetime as dt
 import json
@@ -14,15 +15,15 @@ def now():
 
 
 def config():
-    return json.loads((ROOT / 'config.json').read_text())
+    return json.loads((ROOT / "config.json").read_text())
 
 
 def connect(path=None):
-    p = Path(path) if path else ROOT / 'data' / 'state.sqlite'
+    p = Path(path) if path else ROOT / "data" / "state.sqlite"
     p.parent.mkdir(parents=True, exist_ok=True)
     db = sqlite3.connect(p, timeout=30)
     db.row_factory = sqlite3.Row
-    db.executescript('''
+    db.executescript("""
     PRAGMA journal_mode=WAL;
     CREATE TABLE IF NOT EXISTS jobs (
       id TEXT PRIMARY KEY, created TEXT NOT NULL, topic TEXT NOT NULL,
@@ -38,8 +39,8 @@ def connect(path=None):
       PRIMARY KEY(media_id, observed));
     CREATE TABLE IF NOT EXISTS sources (
       id TEXT PRIMARY KEY, fetched TEXT, published TEXT, url TEXT, payload TEXT);
-    ''')
-    columns={r[1] for r in db.execute("PRAGMA table_info(jobs)")}
+    """)
+    columns = {r[1] for r in db.execute("PRAGMA table_info(jobs)")}
     if "published_at" not in columns:
         db.execute("ALTER TABLE jobs ADD COLUMN published_at TEXT")
         db.commit()
@@ -48,7 +49,7 @@ def connect(path=None):
 
 @contextlib.contextmanager
 def transaction(db):
-    db.execute('BEGIN IMMEDIATE')
+    db.execute("BEGIN IMMEDIATE")
     try:
         yield
         db.commit()
@@ -61,58 +62,80 @@ def reserve(db, job, kind, amount, cfg=None):
     """Integer microdollars; never refund based on an unconfirmed estimate."""
     cfg = cfg or config()
     if amount <= 0:
-        raise ValueError('Reservation must be positive')
+        raise ValueError("Reservation must be positive")
     with transaction(db):
-        if db.execute('SELECT 1 FROM charges WHERE job=? AND kind=?', (job, kind)).fetchone():
-            raise ValueError('This paid operation already exists; no automatic resubmission')
+        if db.execute(
+            "SELECT 1 FROM charges WHERE job=? AND kind=?", (job, kind)
+        ).fetchone():
+            raise ValueError(
+                "This paid operation already exists; no automatic resubmission"
+            )
         cutoff = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=31)).isoformat()
-        month = db.execute('SELECT COALESCE(SUM(reserved),0) FROM charges WHERE created>=?', (cutoff,)).fetchone()[0]
-        total = db.execute('SELECT COALESCE(SUM(reserved),0) FROM charges WHERE job=?', (job,)).fetchone()[0]
-        if month + amount > round(cfg['monthly_budget_usd'] * 1e6):
-            raise ValueError('31-day budget exhausted; paid calls stopped')
-        if total + amount > round(cfg['per_job_budget_usd'] * 1e6):
-            raise ValueError('Per-job budget exhausted; paid call stopped')
+        month = db.execute(
+            "SELECT COALESCE(SUM(reserved),0) FROM charges WHERE created>=?", (cutoff,)
+        ).fetchone()[0]
+        total = db.execute(
+            "SELECT COALESCE(SUM(reserved),0) FROM charges WHERE job=?", (job,)
+        ).fetchone()[0]
+        if month + amount > round(cfg["monthly_budget_usd"] * 1e6):
+            raise ValueError("31-day budget exhausted; paid calls stopped")
+        if total + amount > round(cfg["per_job_budget_usd"] * 1e6):
+            raise ValueError("Per-job budget exhausted; paid call stopped")
         ident = uuid.uuid4().hex
-        db.execute('INSERT INTO charges(id,job,kind,created,reserved,status) VALUES(?,?,?,?,?,?)',
-                   (ident, job, kind, now(), amount, 'reserved'))
+        db.execute(
+            "INSERT INTO charges(id,job,kind,created,reserved,status) VALUES(?,?,?,?,?,?)",
+            (ident, job, kind, now(), amount, "reserved"),
+        )
     return ident
 
 
 def charge_update(db, ident, **fields):
-    allowed = {'actual', 'request_id', 'status', 'result'}
+    allowed = {"actual", "request_id", "status", "result"}
     if not fields or not set(fields) <= allowed:
-        raise ValueError('Invalid charge update')
-    db.execute('UPDATE charges SET ' + ','.join(k+'=?' for k in fields) + ' WHERE id=?',
-               [*fields.values(), ident])
+        raise ValueError("Invalid charge update")
+    db.execute(
+        "UPDATE charges SET " + ",".join(k + "=?" for k in fields) + " WHERE id=?",
+        [*fields.values(), ident],
+    )
     db.commit()
 
 
 def new_job(db, topic, slot=None):
     ident = uuid.uuid4().hex[:12]
-    db.execute('INSERT INTO jobs(id,created,topic,status,slot) VALUES(?,?,?,?,?)',
-               (ident, now(), topic, 'drafting', slot))
+    db.execute(
+        "INSERT INTO jobs(id,created,topic,status,slot) VALUES(?,?,?,?,?)",
+        (ident, now(), topic, "drafting", slot),
+    )
     db.commit()
     return ident
 
 
 import threading
-_worker_lease=threading.local()
+
+_worker_lease = threading.local()
 
 
 @contextlib.contextmanager
 def worker_lock(blocking=True):
     """One production/publishing owner, reentrant for nested local calls."""
     import fcntl
-    depth=getattr(_worker_lease,'depth',0)
+
+    depth = getattr(_worker_lease, "depth", 0)
     if depth:
-        _worker_lease.depth=depth+1
-        try:yield True
-        finally:_worker_lease.depth=depth
+        _worker_lease.depth = depth + 1
+        try:
+            yield True
+        finally:
+            _worker_lease.depth = depth
         return
-    with (ROOT/'data'/'worker.lock').open('w') as handle:
-        try:fcntl.flock(handle,fcntl.LOCK_EX|(0 if blocking else fcntl.LOCK_NB))
+    with (ROOT / "data" / "worker.lock").open("w") as handle:
+        try:
+            fcntl.flock(handle, fcntl.LOCK_EX | (0 if blocking else fcntl.LOCK_NB))
         except BlockingIOError:
-            yield False;return
-        _worker_lease.depth=1
-        try:yield True
-        finally:_worker_lease.depth=0
+            yield False
+            return
+        _worker_lease.depth = 1
+        try:
+            yield True
+        finally:
+            _worker_lease.depth = 0

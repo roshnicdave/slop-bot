@@ -1,0 +1,12 @@
+{
+  "name": "your-quiz-ai",
+  "main": "worker.js",
+  "compatibility_date": "2026-10-28",
+  "workers_dev": true,
+  "ai": {
+    "binding": "AI"
+  },
+  "observability": {
+    "enabled": false
+  }
+}

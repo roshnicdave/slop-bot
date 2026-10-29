@@ -1,36 +1,33 @@
 # Slop Bot
 
-Autonomous visual networking and cybersecurity quizzes for Instagram Reels. AWS runs the scheduler, renderer and Telegram bot. A protected Cloudflare Worker provides free LLM inference and voice.
+An AWS-hosted agent for cybersecurity and networking quiz Reels, controlled through Telegram. It researches primary sources, proposes new questions and technical diagrams, checks them, produces narration and video, publishes, and evaluates subsequent performance.
 
-## Status
+## Operating policy
 
-- Independent repository: https://github.com/roshnicdave/slop-bot
-- Runtime: existing Lightsail server; four services including HTTPS media hosting.
-- Telegram: ordinary messages go to the control plane. `/budget` is the only advertised command. Two private users are configured in `config.json`; each must start the bot.
-- Generation is enabled. Routine approval is automatic after technical, editorial, layout and media checks.
-- Instagram publication is blocked until the official API token is connected. No post has been published by this system yet.
-- Current question coverage: 16 verified mechanisms, including procedural route, ACL, trunk, subnet and MTU variants. New mechanisms need executable verification; the model cannot invent arbitrary technical facts.
+- Two daily posting experiments; the agent proposes times from its own account history. Exact times are hypotheses until there is comparable evidence. The worker sleeps until a deadline or a Telegram wake signal.
+- Routine factual, wording, layout, narration and media checks are automatic. Rejected candidates are skipped; unsupported claims never bypass a gate to fill a schedule.
+- Telegram has one advertised command, `/budget`; ordinary messages use a concise LLM control plane. Previews and non-publication alerts go only to the owner. Confirmed publication notifications go to both authorized chats.
+- Current refinement mode is paused. Read live state in Telegram; deployment preserves pause state and spending limits.
 
-## Daily run
+## Content and learning
 
-1. Gather dated primary sources, available reference-account observations, recent concepts, preferences and comparable-age performance.
-2. A bounded free LLM selects ideas and may request two additional source reads. Cached decisions survive restarts.
-3. Compile a verified scenario. Draft a fresh hook and caption; reject misleading or ambiguous wording. At most two candidates per run.
-4. Generate separate question, reveal and fix audio. Scene transitions and subtitles follow actual audio durations.
-5. Render native diagrams or configuration cards. Check readability, answer alignment, timing and MP4 decoding.
-6. Publish eligible videos in the configured window. Persist request/container IDs and hold uncertain outcomes rather than reposting.
-7. Notify registered Telegram users after confirmed publication. Gather metrics at bounded comparable ages and preserve exploration when choosing pacing.
-8. Delete generated media one hour after confirmed publication. Keep plans, quality reports, receipts and usage records. Keep seven local database backups.
+`discovery.py` creates new source-grounded diagnostic topics and typed technical diagrams from recent primary articles. It preserves the article snapshot, hash, supporting passage and separate factual review. These semantic checks have limits; they are not mathematical proof. The executable networking scenario library remains available for deterministic checks.
 
-## Costs
+`novelty.py` maintains text history independently of video retention. Exact normalized claims are blocked across publication history; concept/overlap checks and a separate source reviewer compare proposals with the last 50 published Reels and pending production. Rewording or IP renumbering does not count as a new lesson. Semantic duplicate detection is fallible.
 
-Default paid inference is disabled at the provider boundary. No paid fallback or automatic upgrade.
+`experiments.py` lets an LLM propose a new pacing or hook hypothesis from feedback and results. One factor is tested at a time. Each Reel records its assignment. Adoption requires at least ten comparable posts per arm and a positive bootstrap interval on shares per reached audience at approximately 72 hours. Inconclusive results stay inconclusive. This updates a saved editorial policy; it does not train model weights or permit arbitrary code execution.
 
-Cloudflare Workers Free provides 10,000 neurons/day account-wide. The local reservation ceiling is 8,000: chat 4,000, voice 3,000, research 1,000. Narration is limited to 600 characters per video across all clips. Two maximum-length videos reserve about 2,110 neurons including headroom. Other account usage can exhaust Free; requests then stop.
+The technical diagram, dark palette, Inter typography, no-subheading rule, short hook and “Comment your answer” prompt are operator requirements. The agent can explore content choices within those requirements, not silently discard them.
 
-The existing Lightsail bundle is $5/month. This project adds no server. Historical paid prototype reservations total about $0.0200; Fal invoice reconciliation is unavailable with the current reporting permissions. Reservations, provider-reported usage and invoices are distinct.
+## Storage and cost
 
-## Run and verify
+SQLite stores jobs, source evidence, concept history, experiments, usage and Telegram file IDs. No additional database service or local inference model is needed. Media exists only while rendering/transmitting: private preview media is deleted after Telegram delivery; published media is deleted after a confirmed Instagram receipt. Telegram previews can be resent using file IDs. Pending publishing artifacts remain staged until their outcome is known.
+
+Cloudflare Workers Free handles the LLM control/research plane under a shared 8,000-neuron daily reservation ceiling. Selected ElevenLabs Chris narration is metered at the verified Fal rate of $0.10/1,000 characters, with the shared $1.80 rolling monthly and $0.03 production-job caps enforced before submission. The six-cent preview experiment has its own ceiling. Other paid models and fallback providers remain disabled. Estimated usage is not an invoice reconciliation.
+
+At about 200–250 spoken characters per Reel, 60 Reels cost approximately $1.20–$1.50 in narration before retries or tests; caps can stop production. The existing Lightsail instance costs $5/month separately. No new server, paid Cloudflare plan or D1 service was added.
+
+## Development
 
 ```sh
 python3 -m venv .venv
@@ -39,10 +36,7 @@ python3 -m venv .venv
 .venv/bin/python -m cyberquiz doctor
 ```
 
-`ffmpeg` and fonts are required for rendering. Credentials live outside the repository in `~/.config/cyber-quiz/credentials.json` with mode 600. Never paste them into issues or commit them.
+FFmpeg and system fonts are required. Inter is bundled with its OFL license. Credentials stay outside the repository in `~/.config/cyber-quiz/credentials.json` with mode 600. See [OPERATIONS.md](OPERATIONS.md) and [AGENT_ARCHITECTURE.md](AGENT_ARCHITECTURE.md).
 
-Deployment: `python3 deploy/upload.py`. It preserves the production database, live pause state and lowered budget limits. Use the service units in `deploy/` for the AWS processes.
-
-## Limits still being evaluated
-
-Virality is an optimization objective, not a guarantee. Public likes and comments do not establish reach or causation. Current live routing evaluation is small; review `data/routing-evaluation.json` on the server. Automatic competitor video/audio inspection, account-wide Cloudflare billing reconciliation, and full publication recovery need further integration. See [AGENT_ARCHITECTURE.md](AGENT_ARCHITECTURE.md) and [PROJECT_REQUIREMENTS.md](PROJECT_REQUIREMENTS.md).
+Local setup: copy `config.example.json` to `config.json`, `cloudflare/wrangler.example.jsonc` to `cloudflare/wrangler.jsonc`, and `deploy/aws.example.json` to `deploy/aws.local.json`. Fill in account, recipients, endpoint and deployment identity locally. These mutable files are ignored by Git; examples contain no account-specific IDs. Generation and publishing start disabled.
+The live `deploy/Caddyfile` is ignored too; copy `deploy/Caddyfile.example` and set your hostname/contact before deploying the media host.

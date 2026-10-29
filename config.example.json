@@ -1,26 +1,23 @@
 {
-  "account": "cybersec.peter",
+  "account": "",
   "monthly_budget_usd": 1.8,
   "per_job_budget_usd": 0.03,
-  "posts_per_day": 1,
+  "posts_per_day": 2,
   "timezone": "America/Los_Angeles",
   "slots": [
-    "09:00",
-    "17:00"
+    "12:35",
+    "19:19"
   ],
   "publishing_enabled": false,
   "graph_version": "v26.0",
-  "public_media_base_url": "https://quiz-44-243-81-67.sslip.io/media",
+  "public_media_base_url": "",
   "require_approval": false,
   "source_max_age_days": 14,
   "price_valid_days": 7,
-  "generation_enabled": true,
+  "generation_enabled": false,
   "billing_verified": false,
-  "runner_host": "ip-172-26-15-221.us-west-2.compute.internal",
-  "telegram_allowed_user_ids": [
-    8010764520,
-    8861370667
-  ],
+  "runner_host": "",
+  "telegram_allowed_user_ids": [],
   "content_mode": "visual",
   "cf_free_plan_confirmed": true,
   "cf_daily_neuron_limit": 8000,
@@ -34,5 +31,18 @@
     "netwithisrar"
   ],
   "comment_read_enabled": false,
-  "paid_providers_enabled": false
+  "paid_providers_enabled": false,
+  "voice_speaker": "orion",
+  "novelty_cooldown_reels": 50,
+  "source_discovery_enabled": true,
+  "cf_chat_neuron_limit": 3000,
+  "cf_research_neuron_limit": 4500,
+  "preview_voice_experiment_cap_usd": 0.06,
+  "telegram_owner_user_id": null,
+  "preview_recipient_user_ids": [],
+  "narration_speed": 1.08,
+  "voice_provider": "elevenlabs",
+  "premium_voice_speaker": "Chris",
+  "palette": "ink",
+  "adaptive_posting_times": true
 }

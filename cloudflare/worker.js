@@ -27,8 +27,11 @@ export default {
     }
     if (typeof input.text!=='string' || input.text.length>600 || /[^\x00-\x7f]/.test(input.text))
       return new Response('Voice profile denied',{status:400});
+    const speaker = input.speaker || 'orion';
+    if (!['orion','arcas','angus','orpheus','perseus','helios','zeus'].includes(speaker))
+      return new Response('Speaker denied',{status:400});
     const audio = await env.AI.run(VOICE, {
-      text:input.text, speaker:'asteria', encoding:'linear16',container:'wav',sample_rate:24000
+      text:input.text, speaker, encoding:'linear16',container:'wav',sample_rate:24000
     });
     return new Response(audio, {headers:{'Content-Type':'audio/wav','Cache-Control':'no-store'}});
   }

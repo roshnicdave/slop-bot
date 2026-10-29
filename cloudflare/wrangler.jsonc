@@ -1,9 +1,0 @@
-{
-  "name": "peterslop-ai",
-  "main": "worker.js",
-  "compatibility_date": "2026-10-28",
-  "account_id": "0fc8351b25f4fefc706632ca6438df9e",
-  "workers_dev": true,
-  "ai": {"binding": "AI"},
-  "observability": {"enabled": false}
-}

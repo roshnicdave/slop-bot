@@ -1,38 +1,33 @@
 # Operations
 
-The source is independent of other projects. Runtime files stay in `~/cyber-quiz` on the existing AWS server; credentials remain outside both the local and remote source trees.
+## Runtime
 
-## Processes
+The four services are `cyberquiz-telegram`, `cyberquiz-conversation`, `cyberquiz-worker` and `cyberquiz-media`. Telegram is the operational interface. Only `/budget` appears in its command menu. Natural-language requests cover status, pause/resume, publishing, schedule overrides, lower budgets, research, ideas and previews.
 
-- `cyberquiz-telegram`: allowlisted Telegram ingress and `/budget`.
-- `cyberquiz-conversation`: ordered per-user chat, bounded LLM proposals, typed execution.
-- `cyberquiz-worker`: daily research, production, publishing and metrics.
-- `cyberquiz-media`: HTTPS media serving with an exact file allowlist.
+During refinement, scheduled generation/publication stay paused. A `publishing_not_before` timestamp additionally prevents premature posting. A fixed schedule entered through Telegram disables adaptive posting times. Never clear an operator pause during deployment.
 
-Normal Telegram text goes into the supervisor inbox. A render does not block chat. `/start` is only the Telegram onboarding handshake; the published command menu contains only `/budget`. Plain-language pause is still available.
+## Deployment and verification
 
-## Deployment
+Run `python3 deploy/upload.py`. Stop the three Python services for the source swap and restart them after checks. The uploader preserves production SQLite, existing credentials, pause state and lowered monetary ceilings. It never uploads laptop-generated media or replaces production data. Use `--sync-secrets` only for an intentional credential update.
 
-Run `python3 deploy/upload.py`. Stop the three Python services for the source swap, then restart them after server checks. The uploader preserves the production SQLite ledger, live pause/publication state, and lowered budget ceilings. Existing server credentials are preserved unless `--sync-secrets` is explicitly supplied. Never replace production state with a laptop snapshot.
+`deploy/aws_access.py` obtains short-lived SSH access without printing the private key. Check service state with:
 
-Run `python3 deploy/aws_access.py 'systemctl is-active cyberquiz-telegram cyberquiz-conversation cyberquiz-worker cyberquiz-media'` to check service state. The helper obtains temporary AWS SSH credentials without printing them.
+```sh
+python3 deploy/aws_access.py 'systemctl is-active cyberquiz-telegram cyberquiz-conversation cyberquiz-worker cyberquiz-media'
+```
 
-## Cost controls
+Tests cover source-proof binding, 50-Reel history, numerical disguises of duplicate claims, scheduling deadlines, budget races, experiment adoption requirements, private access, Telegram media deletion/resending, audio alignment and uncertain publication protection.
 
-Reservations precede external inference. Successful text calls may report measured neurons: account those with 10% headroom plus one neuron, retaining the original reservation for audit. Unknown calls and audio without reported measurements retain their full reservation. The shared cap and category caps apply transactionally to the resulting conservative totals. No paid provider can be used without a separate explicit configuration change.
+## Costs and failure handling
 
-The worst-case voice calculation is `ceil(600 * 1.36364 * 1.25) + 3*10`, about 1,053 neurons/video. Two videos fit the 3,000 voice allocation. The provider's account-wide Free limit can still be consumed by unrelated applications; this system cannot promise remaining capacity it cannot observe. Free exhaustion stops inference.
+Cloudflare uses a shared 8,000-neuron UTC-day ceiling; chat is protected from research consumption. Eligible inference stops when Free is exhausted. The selected premium voice has its own pricing check plus shared rolling monthly/per-job reservations; it is an explicit voice choice, never a model fallback. The private preview experiment is capped at six cents. Fal invoice reporting remains unavailable, so report reservations separately from reconciled billing.
 
-`data/latest-usage.json` holds the last provider audit. Fal reporting is currently unauthorized, so the old approximately $0.02 cannot be presented as an invoice-verified total. DeepSeek balance reads do not spend inference credits. The existing Lightsail bundle is $5/month; account-wide AWS charges have not been reconciled.
+Source attempts and failed drafts are bounded. Unsupported facts, ambiguous answers, duplicates and media failures hold production. Unknown provider results retain their reservation and request identity. Instagram unknown publish results block reposting; inspect saved container/request/account state before any recovery. Never reset such a job to a fresh submission merely because a timeout occurred.
 
-## Holds and recovery
+After confirmed Telegram preview delivery, retain the file ID and erase local media. After confirmed Instagram publication, retain the receipt and erase staging media. Keep media temporarily only for active production or unresolved publication. Keep source evidence, plans, checks and financial records as text. No D1 or additional server is required for the current metadata volume.
 
-No routine video approval is needed. Unsupported facts, ambiguous questions, layout overflow, invalid media or exhausted quota hold the job. Automatic editorial retries are bounded to one alternative candidate. A saved completed voice file is reused. An uncertain inference or publishing call is not blindly resubmitted.
+## Credentials and notifications
 
-Published media is removed only after a confirmed media ID and publication timestamp plus one hour. Keep receipts, plans and quality reports. A media container alone is insufficient for deletion.
+Credentials remain outside Git in a private file. Meta's Page token currently has no scheduled token expiry, but its data-access deadline and revocation still matter; the service checks them daily. Reauthorization may require the owner. Do not transmit Instagram credentials to an AI provider.
 
-## Current blockers
-
-Official Instagram API authorization is still missing. Linking the Facebook Page was completed, but is separate from granting the app publishing access. The permission review must be completed in Meta and the token saved via the hidden connector prompt. Do not put tokens in Telegram or GitHub.
-
-Business Discovery and own post metrics become available only after the relevant API scopes are connected. Competitor captions/counts are observable; competitor reach/watch time and automatic video/audio inspection are not currently connected. The small routing evaluation is not proof of broad model reliability. Local backups do not protect against loss of the entire server.
+Only confirmed-publication notifications go to both registered authorized chats. Previews, failures and unsolicited updates go to the owner. Ordinary interactive replies stay with the chat that requested them.

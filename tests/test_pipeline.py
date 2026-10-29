@@ -617,6 +617,10 @@ class CredentialIngressTests(unittest.TestCase):
                     return_value={"telegram_allowed_user_ids": [10]},
                 ),
                 patch("cyberquiz.telegram.send") as send,
+                patch(
+                    "cyberquiz.agent.event_reply",
+                    return_value="Use the private connection workflow.",
+                ) as narration,
             ):
                 handle(
                     db,
@@ -633,6 +637,7 @@ class CredentialIngressTests(unittest.TestCase):
                     db.execute("SELECT COUNT(*) FROM telegram_updates").fetchone()[0], 0
                 )
                 self.assertNotIn("a" * 32, send.call_args[0][1])
+                self.assertNotIn("a" * 32, repr(narration.call_args))
             db.close()
 
 

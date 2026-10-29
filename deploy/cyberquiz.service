@@ -1,0 +1,17 @@
+[Unit]
+Description=Source-backed cybersecurity quiz pipeline
+After=network-online.target
+Wants=network-online.target
+[Service]
+Type=oneshot
+User=ec2-user
+WorkingDirectory=/home/ec2-user/cyber-quiz
+Environment=PATH=/home/ec2-user/cyber-quiz/.venv/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/home/ec2-user/cyber-quiz/.venv/bin/python -m cyberquiz tick
+Nice=10
+MemoryMax=330M
+TimeoutStartSec=900
+UMask=0077
+NoNewPrivileges=true
+ProtectSystem=full
+PrivateTmp=true

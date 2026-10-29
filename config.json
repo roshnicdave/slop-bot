@@ -1,0 +1,38 @@
+{
+  "account": "cybersec.peter",
+  "monthly_budget_usd": 1.8,
+  "per_job_budget_usd": 0.03,
+  "posts_per_day": 1,
+  "timezone": "America/Los_Angeles",
+  "slots": [
+    "09:00",
+    "17:00"
+  ],
+  "publishing_enabled": false,
+  "graph_version": "v26.0",
+  "public_media_base_url": "https://quiz-44-243-81-67.sslip.io/media",
+  "require_approval": false,
+  "source_max_age_days": 14,
+  "price_valid_days": 7,
+  "generation_enabled": true,
+  "billing_verified": false,
+  "runner_host": "ip-172-26-15-221.us-west-2.compute.internal",
+  "telegram_allowed_user_ids": [
+    8010764520,
+    8861370667
+  ],
+  "content_mode": "visual",
+  "cf_free_plan_confirmed": true,
+  "cf_daily_neuron_limit": 8000,
+  "ai_provider": "cloudflare",
+  "paid_fallback_enabled": false,
+  "emergency_pause": false,
+  "autonomous": true,
+  "media_retention": "confirmed-publication-plus-one-hour",
+  "concept_cooldown_days": 14,
+  "reference_accounts": [
+    "netwithisrar"
+  ],
+  "comment_read_enabled": false,
+  "paid_providers_enabled": false
+}

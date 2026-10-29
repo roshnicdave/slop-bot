@@ -1,0 +1,63 @@
+{
+  "observed_at": "2026-10-28",
+  "source": "https://www.instagram.com/netwithisrar/reel/De6FlZUMCTb/",
+  "creator_profile": "https://www.instagram.com/netwithisrar/",
+  "profile_followers_observed": 84405,
+  "video_duration_seconds_observed": 10.005333,
+  "post_age_displayed": "3 days ago",
+  "observations": [
+    "The original Reel is the exact VLAN diagram shown in the user's reference.",
+    "Immediate two-line question in a navy rounded header on white.",
+    "PC-switch-PC diagram with VLAN 10/20 labels and four pale-blue answer buttons.",
+    "Large countdown overlays the diagram; minimal caption with three topic/brand hashtags.",
+    "Visible comments include one-letter answers, technical explanations, and objections about unstated assumptions.",
+    "Some individual explanatory comments displayed more than 200 likes. These are comment likes, not Reel views.",
+    "The interface did not reveal a verified total reach, watch-through rate, or attribution for this Reel. Its virality is not independently established by the profile follower count."
+  ],
+  "design_hypotheses": [
+    "Use a solvable visual fault immediately, with enough information to make one answer defensible.",
+    "Make reading and answering easy with four short consistent options.",
+    "Test a short 10-18 second version with voice, avoiding long acronym/date readings.",
+    "Ask for the diagnostic clue, rather than demanding arbitrary comments.",
+    "Preserve the visual puzzle, then show the fix; compare performance against our own posts."
+  ],
+  "additional_references": [
+    {
+      "url": "https://www.instagram.com/netwithisrar/reel/De6FlZUMCTb/",
+      "observed_views": "249K on creator grid",
+      "caveat": "Views observed, not a causal explanation."
+    },
+    {
+      "url": "https://www.instagram.com/reel/DdyrXw7qzaX/",
+      "type": "117-second explainer",
+      "observed_views": "341K on creator grid",
+      "notes": "Animated teaching with topology and short on-screen captions; comments included practical questions and missing assumptions."
+    },
+    {
+      "url": "https://www.instagram.com/reel/De8LTHeoM_w/",
+      "type": "NTP explainer",
+      "observed_views": "35K on creator grid",
+      "notes": "Animated presenter, network diagram and on-screen wording. Different age and topic prevent a direct format comparison."
+    },
+    {
+      "url": "https://www.youtube.com/shorts/Zs3MsB5G0rg",
+      "type": "19.8-second generic quiz",
+      "notes": "Four answer pills, large countdown, generic modem definition. 183 likes and 2 comments visible; not evidence of strong discussion."
+    },
+    {
+      "url": "https://www.instagram.com/p/Dc-Jx4-sV3h/",
+      "type": "18.08-second Reel",
+      "notes": "Unrelated Chinese fashion caption over a text-and-video meme. Does not establish caption-driven reach."
+    },
+    {
+      "url": "https://www.instagram.com/p/DeUjEIoiMGX/",
+      "type": "carousel",
+      "notes": "Large-text joke and unrelated Ukrainian music paragraph. Comments discussed slides rather than the caption."
+    },
+    {
+      "url": "https://www.instagram.com/p/DfAaZg3IB26/",
+      "type": "carousel",
+      "notes": "Cat meme, reused Japanese anime promotional text. Other profile previews repeated the caption. Not a Reel comparison."
+    }
+  ]
+}

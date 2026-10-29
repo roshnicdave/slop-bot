@@ -1,0 +1,19 @@
+quiz-44-243-81-67.sslip.io {
+    @video path_regexp video ^/media/[a-f0-9]{12}/reel\.mp4$
+    handle @video {
+        uri strip_prefix /media
+        root * /home/ec2-user/cyber-quiz/out
+        header Cache-Control "public, max-age=86400"
+        file_server
+    }
+    handle /health {
+        respond "Cyber quiz media host" 200
+    }
+    handle /privacy {
+        header Content-Type "text/plain; charset=utf-8"
+        respond "This private application publishes educational videos to the operator's Instagram account. It stores account authorization credentials on the operator's server and post performance metrics. Instagram credentials are never sent to AI providers. Access can be revoked in Instagram settings. For deletion requests, contact @cybersec.peter." 200
+    }
+    handle {
+        respond "Not found" 404
+    }
+}

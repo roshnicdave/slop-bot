@@ -1,0 +1,62 @@
+[
+  {
+    "name": "anthropic-effective-agents",
+    "url": "https://www.anthropic.com/engineering/building-effective-agents",
+    "resolved_url": "https://www.anthropic.com/research/building-effective-agents",
+    "status": 200,
+    "chars": 19009,
+    "source_text_sha256": "c2a6b1182ed84751ea67434dc5336e5ac1a7ae989be3d5b34e32ecbfcf4b5eb0",
+    "summary": "Distinguishes fixed workflows from agents that direct tools using observations. Recommends starting simple and adding bounded autonomy where it helps.",
+    "checked_at": "2026-10-28"
+  },
+  {
+    "name": "anthropic-context",
+    "url": "https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents",
+    "resolved_url": "https://www.anthropic.com/research/effective-context-engineering-for-ai-agents",
+    "status": 200,
+    "chars": 21802,
+    "source_text_sha256": "d39108b3bf9f1cb1c2793d42cbe1073928fa3c830d087618adf057c7ecba55b0",
+    "summary": "Curate high-signal context, retrieve relevant information as needed, and persist concise notes rather than replaying all history.",
+    "checked_at": "2026-10-28"
+  },
+  {
+    "name": "anthropic-multiagent",
+    "url": "https://www.anthropic.com/engineering/multi-agent-research-system",
+    "resolved_url": "https://www.anthropic.com/research/multi-agent-research-system",
+    "status": 200,
+    "chars": 26714,
+    "source_text_sha256": "9f5b8c6218c2efea331c869628e57a33d80a95b691f37fa0b25e51379d0728f1",
+    "summary": "Production research system uses explicit effort budgets, persistence, evaluations and recovery. Its multi-agent costs were substantially higher in its reported workload.",
+    "checked_at": "2026-10-28"
+  },
+  {
+    "name": "langgraph-durable",
+    "url": "https://docs.langchain.com/oss/python/langgraph/durable-execution",
+    "resolved_url": "https://docs.langchain.com/oss/python/langgraph/persistence",
+    "status": 200,
+    "chars": 328625,
+    "source_text_sha256": "31e1617ea444f87531ef6eb3894fddde30e091b8ea582303b689c8e3dc34f215",
+    "summary": "Persistence separates thread checkpoints from long-term stores. In-memory persistence does not survive service restarts.",
+    "checked_at": "2026-10-28"
+  },
+  {
+    "name": "temporal-ai",
+    "url": "https://docs.temporal.io/ai-cookbook",
+    "resolved_url": "https://docs.temporal.io/ai/cookbook",
+    "status": 200,
+    "chars": 4093,
+    "source_text_sha256": "efc64894f55ca99f43b5d0889b4d1b353c6b12deea0917d0b941c2dc091be51c",
+    "summary": "Cookbook demonstrates durable agent loops, tool activities, structured outputs, approval signals and hard-rule overrides.",
+    "checked_at": "2026-10-28"
+  },
+  {
+    "name": "cloudflare-patterns",
+    "url": "https://developers.cloudflare.com/agents/concepts/agentic-patterns/",
+    "resolved_url": "https://developers.cloudflare.com/agents/concepts/agentic-patterns/",
+    "status": 200,
+    "chars": 13419,
+    "source_text_sha256": "e32f9aea251fe906697ee5298ae97588ee07c2cc15e7efb2d39d4e237e8e9641",
+    "summary": "Documents routing, prompt chaining, orchestrator-workers and evaluator-optimizer patterns; relevant patterns can be implemented without moving all orchestration to Cloudflare.",
+    "checked_at": "2026-10-28"
+  }
+]

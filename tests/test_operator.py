@@ -15,22 +15,18 @@ class OperatorTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.addCleanup(self.db.close)
 
-    def test_ordinary_message_routes_without_inference_but_question_does_not(self):
+    def test_natural_language_uses_model_without_phrase_gate(self):
         with patch(
-            "cyberquiz.chat.cloudflare.llm",
-            return_value={"action": "answer", "reply": "Yes."},
+            "cyberquiz.chat.cloudflare.llm", return_value={"action": "publish_next"}
         ) as llm:
-            self.assertEqual(
-                propose(self.db, "one", "post the next reel now", {}, 1)["action"],
-                "publish_next",
-            )
-            llm.assert_not_called()
-            self.assertEqual(
-                propose(self.db, "two", "will you post the next reel now?", {}, 1)[
-                    "action"
-                ],
-                "answer",
-            )
+            for text in (
+                "can u post the next reel now",
+                "just post it now and then queue another. i still want two posts tomorrow",
+            ):
+                self.assertEqual(
+                    propose(self.db, text, text, {}, 1)["action"], "publish_next"
+                )
+            self.assertEqual(llm.call_count, 2)
 
     def test_delivery_is_bound_to_one_job_and_never_reposts(self):
         ident = new_job(self.db, "test")
@@ -102,13 +98,12 @@ class OperatorTests(unittest.TestCase):
             self.assertEqual(publish_next(self.db, "one"), job)
             generation.assert_called_once_with(self.db, slot="operator:one")
 
-    def test_model_cannot_turn_casual_chat_into_publication(self):
+    def test_unsupported_model_action_is_rejected(self):
         with patch(
-            "cyberquiz.chat.cloudflare.llm", return_value={"action": "publish_next"}
+            "cyberquiz.chat.cloudflare.llm", return_value={"action": "run_shell"}
         ):
-            self.assertEqual(
-                propose(self.db, "x", "nice colors", {}, 1)["action"], "answer"
-            )
+            with self.assertRaises(ValueError):
+                propose(self.db, "x", "hello", {}, 1)
 
     def test_telegram_acknowledges_durable_work_without_publishing_in_chat_process(
         self,
@@ -137,6 +132,7 @@ class OperatorTests(unittest.TestCase):
             patch("cyberquiz.conversation.config", return_value=cfg),
             patch("cyberquiz.conversation.status_text", return_value="ready"),
             patch("cyberquiz.conversation.send"),
+            patch("cyberquiz.chat.propose", return_value={"action": "publish_next"}),
             patch("cyberquiz.wakeup.signal") as wake,
             patch("cyberquiz.instagram.publish") as publish,
         ):

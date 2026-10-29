@@ -166,6 +166,10 @@ def status_text(db, budget_only=False):
         if c["publishing_enabled"]
         else ("paused" if connected else "blocked: Meta authorization missing")
     )
+    auth_path = ROOT / "data" / "meta-auth-health.json"
+    auth = json.loads(auth_path.read_text()) if auth_path.exists() else {}
+    if auth.get("valid") is False and auth.get("reason"):
+        publication = "blocked: " + auth["reason"]
     latest = db.execute(
         "SELECT id,status FROM jobs ORDER BY created DESC LIMIT 1"
     ).fetchone()

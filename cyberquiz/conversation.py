@@ -103,7 +103,9 @@ def process(ident):
             )
             reply = "Paused generation and posting."
         elif action == "resume":
-            connected = bool(secrets().get("IG_ACCESS_TOKEN"))
+            from .auth_health import check
+
+            connected = bool(secrets().get("IG_ACCESS_TOKEN")) and check(force=True)
             update_config(
                 {
                     "emergency_pause": False,

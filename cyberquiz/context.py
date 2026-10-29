@@ -108,8 +108,11 @@ def read(db, resource):
 def snapshot(db):
     cfg = config()
     queue = read(db, "queue")
+    marker = ROOT / "data" / "meta-auth-health.json"
+    auth = json.loads(marker.read_text()) if marker.exists() else {}
     return {
         "observed_at": now(),
+        "instagram_access": {k: auth.get(k) for k in ("valid", "reason", "checked_at")},
         "generation_enabled": cfg.get("generation_enabled"),
         "publishing_enabled": cfg.get("publishing_enabled"),
         "emergency_pause": cfg.get("emergency_pause"),

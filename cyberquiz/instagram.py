@@ -10,24 +10,41 @@ from .providers import secrets, checked
 from .store import ROOT, config, now, worker_lock
 
 
+class MetaAPIError(RuntimeError):
+    def __init__(self, status, code=None, subcode=None):
+        self.http_status, self.code, self.subcode = status, code, subcode
+        reason = (
+            "Meta denied the app's account access; reconnect Meta"
+            if code in (10, 190, 200)
+            else "Meta rejected the request"
+        )
+        super().__init__(f"{reason} (HTTP {status}, code {code}, subcode {subcode})")
+
+
 def graph(method, path, **kwargs):
     cfg = config()
     keys = secrets()
-    key = keys["IG_ACCESS_TOKEN"]
     host = (
         "graph.facebook.com"
         if keys.get("IG_AUTH_MODE") == "facebook"
         else "graph.instagram.com"
     )
-    return checked(
-        requests.request(
-            method,
-            f"https://{host}/{cfg['graph_version']}/{path}",
-            headers={"Authorization": "Bearer " + key},
-            timeout=45,
-            **kwargs,
-        )
+    response = requests.request(
+        method,
+        f"https://{host}/{cfg['graph_version']}/{path}",
+        headers={"Authorization": "Bearer " + keys["IG_ACCESS_TOKEN"]},
+        timeout=45,
+        **kwargs,
     )
+    if not response.ok:
+        try:
+            error = response.json().get("error", {})
+        except ValueError:
+            error = {}
+        raise MetaAPIError(
+            response.status_code, error.get("code"), error.get("error_subcode")
+        )
+    return response.json()
 
 
 def publish(db, job, *, immediate=False):
@@ -91,16 +108,31 @@ def _publish(db, job, *, immediate=False):
         db.execute("UPDATE jobs SET status=? WHERE id=?", ("container_submitting", job))
         db.commit()
         # If the response is lost, do not automatically create another container.
-        result = graph(
-            "POST",
-            keys["IG_USER_ID"] + "/media",
-            data={
-                "media_type": "REELS",
-                "video_url": f"{base}/{job}/reel.mp4",
-                "caption": p["caption"],
-                "share_to_feed": "true",
-            },
-        )
+        try:
+            result = graph(
+                "POST",
+                keys["IG_USER_ID"] + "/media",
+                data={
+                    "media_type": "REELS",
+                    "video_url": f"{base}/{job}/reel.mp4",
+                    "caption": p["caption"],
+                    "share_to_feed": "true",
+                },
+            )
+        except MetaAPIError as exc:
+            # A definite client rejection of creation cannot publish a Reel.
+            # Transport failures and 5xx retain the uncertain phase.
+            if 400 <= exc.http_status < 500:
+                db.execute(
+                    "UPDATE jobs SET status='rendered',error=? WHERE id=?",
+                    (str(exc), job),
+                )
+                db.commit()
+            if exc.code in (10, 190, 200):
+                from .telegram import update_config
+
+                update_config({"publishing_enabled": False})
+            raise
         db.execute(
             "UPDATE jobs SET container_id=?,status=? WHERE id=?",
             (result["id"], "container_created", job),

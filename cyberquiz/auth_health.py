@@ -7,11 +7,11 @@ from .store import ROOT, connect, now, config
 from .providers import secrets
 
 
-def check():
+def check(*, force=False):
     k = secrets()
     stamp = k.get("IG_TOKEN_REFRESHED_AT")
     marker = ROOT / "data" / "meta-auth-health.json"
-    if marker.exists():
+    if marker.exists() and not force:
         cached = json.loads(marker.read_text())
         if (
             cached.get("credential_revision") == stamp
@@ -38,6 +38,23 @@ def check():
     )
     data = response.json().get("data")
     if not isinstance(data, dict):
+        error = response.json().get("error", {})
+        if error.get("code") in (10, 190, 200):
+            reason = "Meta denied account access; complete account confirmation or reconnect Meta."
+            marker.write_text(
+                json.dumps(
+                    {
+                        "checked_at": now(),
+                        "credential_revision": stamp,
+                        "valid": False,
+                        "reason": reason,
+                    }
+                )
+            )
+            from .telegram import update_config
+
+            update_config({"publishing_enabled": False})
+            return False
         raise RuntimeError("Meta credential health check unavailable")
     expiry = [
         x

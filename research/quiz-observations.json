@@ -58,6 +58,25 @@
       "url": "https://www.instagram.com/p/DfAaZg3IB26/",
       "type": "carousel",
       "notes": "Cat meme, reused Japanese anime promotional text. Other profile previews repeated the caption. Not a Reel comparison."
+    },
+    {
+      "url": "https://www.instagram.com/reel/Dew6oWQK6R_/",
+      "creator": "studycramvault",
+      "observed_at": "2026-10-28",
+      "inspection": "Visible question/reveal frame, caption and loaded comments; full playback/audio not verified.",
+      "visible_counts": {
+        "comments": 230,
+        "reposts": 115
+      },
+      "observations": [
+        "Five-question network-protocol quiz advertised in caption; visible first question asks which protocol maps domain names to IP addresses. Four choices, green answer highlight, short explanation, purple branded frame.",
+        "Several visible comments report scores such as 5/5; others call the questions basic or ask for harder ones."
+      ],
+      "hypotheses": [
+        "Preserve our clean navy diagrams and short diagnostic reasoning. Keep entry difficulty approachable while offering a useful explanation.",
+        "Score-based participation may be worth testing later; it is not evidence that five questions outperform a single puzzle."
+      ],
+      "limitations": "Views, reach, retention, audio quality and causal effects unavailable; comments are a visible sample."
     }
   ]
 }

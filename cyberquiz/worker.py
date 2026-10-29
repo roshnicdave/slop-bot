@@ -5,16 +5,26 @@ import fcntl
 import json
 
 from .store import ROOT, connect, config, transaction, worker_lock
-from .telegram import tables, send, video, notify
+from .telegram import tables, send as deliver, video, notify
 
 
 def run(db, row):
+    def send(user, facts):
+        from .agent import event_reply
+
+        text = event_reply(db, "worker-reply:" + str(row["id"]), facts)
+        return deliver(user, text)
+
     ident = row["id"]
     user = row["user_id"]
     command = row["command"]
     parts = command.split(maxsplit=1)
     try:
-        if parts[0] == "/publish-next":
+        if parts[0] == "/refill":
+            from .readiness import ensure
+
+            ensure(db)
+        elif parts[0] == "/publish-next":
             from .operator import publish_next
 
             publish_next(db, ident)
@@ -119,7 +129,7 @@ def main():
                     try:
                         with transaction(db):
                             row = db.execute(
-                                'SELECT * FROM telegram_updates WHERE status="queued" ORDER BY id LIMIT 1'
+                                'SELECT * FROM telegram_updates WHERE status="queued" ORDER BY created,id LIMIT 1'
                             ).fetchone()
                             if row:
                                 db.execute(

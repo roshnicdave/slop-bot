@@ -80,8 +80,19 @@ def video(chat, job):
         )
         db.commit()
     else:
+        from .agent import event_reply
+
+        message = event_reply(
+            db,
+            "missing-preview:" + job + ":" + str(chat),
+            {
+                "preview_job": job,
+                "available": False,
+                "reason": "No local media or Telegram file ID remains.",
+            },
+        )
         db.close()
-        return send(chat, "That video has no saved Telegram copy.")
+        return send(chat, message)
     db.execute(
         "INSERT OR REPLACE INTO control VALUES(?,?)", ("last_preview:" + str(chat), job)
     )
@@ -96,6 +107,41 @@ def video(chat, job):
 
 def notify(db, event, message):
     tables(db)
+    db.execute(
+        "CREATE TABLE IF NOT EXISTS notice_texts(event TEXT PRIMARY KEY,facts TEXT,text TEXT,attempts INTEGER DEFAULT 0)"
+    )
+    db.execute(
+        "INSERT OR IGNORE INTO notice_texts(event,facts) VALUES(?,?)", (event, message)
+    )
+    db.commit()
+    cached = db.execute(
+        "SELECT text,attempts FROM notice_texts WHERE event=?", (event,)
+    ).fetchone()
+    if cached[0]:
+        message = cached[0]
+    else:
+        if cached[1] >= 3:
+            return
+        db.execute(
+            "UPDATE notice_texts SET attempts=attempts+1 WHERE event=?", (event,)
+        )
+        db.commit()
+        try:
+            import hashlib
+            from .agent import event_reply
+
+            message = event_reply(
+                db,
+                "notice:"
+                + hashlib.sha256(event.encode()).hexdigest()[:20]
+                + ":"
+                + str(cached[1]),
+                message,
+            )
+        except Exception:
+            return  # Facts remain pending; no fabricated fallback response.
+        db.execute("UPDATE notice_texts SET text=? WHERE event=?", (message, event))
+        db.commit()
     owner = config().get("telegram_owner_user_id")
     for row in db.execute("SELECT chat_id FROM telegram_chats").fetchall():
         chat = row[0]
@@ -120,6 +166,17 @@ def notify(db, event, message):
                 (event, chat),
             )
             db.commit()
+
+
+def retry_notifications(db):
+    if not db.execute(
+        "SELECT 1 FROM sqlite_master WHERE name='notice_texts'"
+    ).fetchone():
+        return
+    for row in db.execute(
+        "SELECT event,facts FROM notice_texts WHERE text IS NULL AND attempts<3 LIMIT 2"
+    ).fetchall():
+        notify(db, row[0], row[1])
 
 
 def update_config(values):
@@ -242,36 +299,26 @@ def handle(db, update):
         text,
     )
     if credential:
-        send(user, "Keep tokens out of chat. Use the hidden connection prompt.")
+        from .agent import event_reply
+
+        message = event_reply(
+            db,
+            "credential-warning:" + str(update["update_id"]),
+            {
+                "credential_detected": True,
+                "stored": False,
+                "required_handling": "Use the private connection workflow, not Telegram chat.",
+            },
+        )
+        send(user, message)
         return
-    command = text.split(maxsplit=1)[0].split("@")[0].lower()
     db.execute(
         "INSERT INTO telegram_updates VALUES(?,?,?,?,?,?)",
         (update["update_id"], user, text, "received", None, now()),
     )
     db.commit()
-    if command == "/start":
-        send(user, "Ready. " + HELP)
-    elif command == "/budget":
-        send(user, status_text(db, True))
-    else:
-        # Every ordinary message goes to the supervisor. Legacy slash commands
-        # are not a second control API; remove only the slash for plain chat.
-        if command.startswith("/"):
-            text = text[1:]
-            db.execute(
-                "UPDATE telegram_updates SET command=? WHERE id=?",
-                (text, update["update_id"]),
-            )
-        db.execute(
-            'UPDATE telegram_updates SET status="queuedchat" WHERE id=?',
-            (update["update_id"],),
-        )
-        db.commit()
-        return
-    mark_replied(db, update["update_id"])
     db.execute(
-        'UPDATE telegram_updates SET status="done",result="replied" WHERE id=?',
+        'UPDATE telegram_updates SET status="queuedchat" WHERE id=?',
         (update["update_id"],),
     )
     db.commit()

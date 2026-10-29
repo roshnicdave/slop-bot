@@ -22,6 +22,9 @@ def tick(db):
         from .maintenance import cleanup, backup
 
         cleanup(db)
+        from .telegram import retry_notifications
+
+        retry_notifications(db)
         backup(db)
         from .timing_plan import apply
 

@@ -255,3 +255,20 @@ def voice(db, job, label, text, path):
     path.write_bytes(r.content)
     normalize_wav(path)
     return path
+
+
+def agent_turn(db, operation, messages, tools):
+    body = {"messages": messages, "tools": tools, "max_tokens": 360, "temperature": 0.2}
+    size = len(json.dumps(body).encode())
+    if size > 44000:
+        raise ValueError("Agent context limit reached")
+    neurons = math.ceil((size * 31876 + 360 * 50488) / 1e6 * 1.25) + 10
+    response = request(db, operation, "control", EDITOR, body, neurons).json()
+    if not response.get("success"):
+        raise RuntimeError("Agent provider did not report success")
+    result = response["result"]
+    choice = (result.get("choices") or [{}])[0].get("message", {})
+    return {
+        "content": choice.get("content") or result.get("response") or "",
+        "tool_calls": choice.get("tool_calls") or result.get("tool_calls") or [],
+    }

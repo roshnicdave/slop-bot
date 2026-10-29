@@ -365,23 +365,6 @@ class AutonomyTests(unittest.TestCase):
             self.assertTrue((root / "out" / jobs[0] / "receipt.json").exists())
             db.close()
 
-    def test_discussion_uses_model_answer_without_operational_action(self):
-        from cyberquiz.chat import propose
-
-        with tempfile.TemporaryDirectory() as folder:
-            db = connect(Path(folder) / "s.db")
-            with patch(
-                "cyberquiz.chat.cloudflare.llm",
-                return_value={"action": "answer", "reply": "The layout is readable."},
-            ):
-                self.assertEqual(
-                    propose(db, "op", "What do you think about the design?", {}, 1)[
-                        "action"
-                    ],
-                    "answer",
-                )
-            db.close()
-
     def test_conversation_remembers_both_sides_separately(self):
         from cyberquiz.chat import remember, history
 

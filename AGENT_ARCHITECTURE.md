@@ -1,57 +1,48 @@
-# Agent architecture
+# Architecture
 
-The system combines a bounded editorial agent with deterministic execution and persistent evidence. It runs on the existing small Lightsail instance without a multi-agent framework or a continuously thinking model.
+Slop Bot has one conversational agent and a durable autonomous production worker. Telegram is the agent's interface, not a parallel command interpreter.
 
-## Decision cycle
+```mermaid
+flowchart LR
+  Telegram --> Agent
+  Agent -->|native function calls| Capabilities
+  Capabilities --> State[(SQLite state and receipts)]
+  Capabilities -->|durable work| Worker
+  Worker --> Research --> Validation --> Render --> Publish
+  State -->|results| Agent
+  Agent -->|generated reply| Telegram
+  Publish -->|confirmed event| Notifications
+  Notifications -->|generated notice| Telegram
+```
 
-1. Collect dated primary articles, authorized Instagram observations, comparable-age own-account results and durable operator feedback.
-2. Propose fresh diagnostic topics, inspect bounded primary-source text, construct a typed technical diagram and draft a short question.
-3. Check literal supporting evidence, factual consistency, ambiguity, previous learning objectives, layout and spoken claims. A separate review can reject a draft. Executable scenes retain their mathematical validators; new source-grounded topics use source/semantic checks and retain that distinction in their provenance.
-4. Generate concise speech, measure each clip, render the timeline and check the decoded audio/video. Production reserves the entire narration estimate before purchasing its first segment.
-5. Publish through the official API. Persist uncertain side effects and stop duplicate submission. Notify after a confirmed post, then erase staging media.
-6. Observe results, evaluate the active experiment, adopt supported changes and propose the next hypothesis. Keep every decision, assignment, rejection and outcome as text.
+## Conversation
 
-## Learned policy and fixed boundaries
+Every message, including the budget menu entry, goes directly to the same Cloudflare Mistral agent. It receives live state, conversation memory and native function definitions. The model may read more evidence or call a capability, consume its result, then write a normal reply. There is no phrase classifier, separate action-selection inference, or reply-template layer. `chat.py` only stores conversation memory and preferences.
 
-The agent proposes topics, wording strategies, new numerical pacing values and posting windows. SQLite records the evolving policy and its evidence. One active content experiment at a time helps interpret results. At least ten comparable samples per arm and a bootstrap interval are required for adoption; small or missing data cannot be called success. User feedback is durable input to drafting and future experiments.
+`agent.py` owns the bounded function-calling loop. `agent_tools.py` exposes operational reads, run/pause, publishing, schedule, budget reduction, saved preferences and work enqueueing. Schemas describe API inputs, not user command phrases. Backend functions enforce access, typed arguments, spending limits and publication invariants. Neither prompts nor model output can grant credentials or arbitrary shell access.
 
-Spending ceilings, private Telegram access, supported rendering primitives, source trust boundaries, technical validation, the operator's visual requirements and duplicate-publication protections are enforced in code. A generated policy cannot grant itself shell access, rewrite validators, change credentials, spend beyond limits or promote an unsupported technical claim.
+Tool receipts persist before the next inference. Accepted asynchronous work is distinct from completed work. Stable child request IDs deduplicate enqueueing and allow multiple distinct tasks in one conversation turn. Production stays in the worker so chat does not wait for video rendering. A failed response never causes automatic replay of completed tools.
 
-## Long-running operation
+The model supports native function calls through the Workers AI binding. Worker transport preserves tool definitions and messages instead of forcing JSON conversational responses. Generated notifications are cached once per event and delivered according to recipient policy; failed generation remains pending for bounded retry.
 
-A durable SQLite inbox survives process restarts. An authenticated local Unix datagram wakes the worker for Telegram work/configuration changes. Otherwise it sleeps until the next posting deadline, daily planning boundary or six-hour housekeeping deadline. Systemd restarts the independent ingress, conversation and production services. A global worker lease serializes production/publishing while chat remains responsive.
+## Autonomous production
 
-Sources and daily decisions are cached. New source attempts, external request IDs and paid reservations have stable identities. There are at most two new-source attempts per research day across both posts and restarts. Uncertain inference is not submitted again under a fresh identity. Daily Meta credential checks alert before data-access expiry and pause posting after revocation.
+Daily primary-source research proposes diagnostic concepts and technical diagrams. Independent source/executable checks, semantic novelty review, a 50-published-Reel concept cooldown and all-history exact-claim checks can reject a candidate. Rewording or renumbering is not novelty. Source reviews remain fallible and are not described as executable proof.
 
-The text ledger outlives disposable videos. Telegram file IDs support resending without local video retention. SQLite backups rotate across seven days. Whole-server loss still requires an off-host backup strategy; local backups are not disaster recovery.
+The worker stages one approved Reel and refills after consumption, subject to quota, quality and bounded attempts. Scheduled posting consumes ready work first. Jobs, usage reservations, source evidence, experiments and outcomes survive process restarts. The daemon sleeps to deadlines and wakes on a durable-inbox signal; it does not poll every minute.
 
-## Known limits
+Models may propose one-factor content experiments. Adoption requires comparable-age measurements, minimum samples and recorded evidence. This updates editorial policy, not model weights. There is no promise of viral performance or indefinite operation without credential renewal.
 
-No system can promise unlimited interesting, true questions or virality. New topics can continue beyond the original scenario bank, but a day with no qualifying source/question is skipped. Source entailment and semantic novelty reviews can miss errors. Public competitor counts do not reveal retention or reach. Complete automatic reconciliation of unknown Instagram publishing outcomes, automated factual-correction handling and off-host disaster recovery remain unfinished. These states require an actionable owner alert, not fabricated success.
+## Reliability and cost
 
-## Research informing this design
+All paid inference reserves integer microdollars before submission. The rolling monthly and per-job caps include uncertain charges. Cloudflare inference uses eligible Free-plan models, a shared conservative quota and provider-reported usage reconciliation, with no paid fallback. No extra local model or database service is required.
 
-- [Anthropic: Building effective agents](https://www.anthropic.com/engineering/building-effective-agents): simple patterns, clear tool interfaces and evaluator feedback.
-- [Anthropic: Effective context engineering](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents): relevant durable memory and bounded context.
-- [Anthropic: Demystifying evals for AI agents](https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents): traces, multiple checks and regression evaluation.
-- [AWS: Making retries safe with idempotent APIs](https://aws.amazon.com/builders-library/making-retries-safe-with-idempotent-APIs/): persisted operation identity and uncertain outcomes.
+Publication states distinguish rejected container creation, processing and an uncertain final publish outcome. A definite client rejection restores the staged job; transport uncertainty remains held. Never submit another post to guess whether an unknown publish succeeded. Meta access checks pause publication on rejection and expose the reason to the agent; operator resume rechecks access.
 
-These sources support engineering practices, not claims that a particular hook, color or posting time causes reach.
+Media is temporary staging. Confirmed publication or preview delivery removes local media; metadata, receipts and Telegram file IDs remain. Database backups are local and bounded; off-host disaster recovery is not implemented. Dependencies and account permissions can change, and provider outages can prevent replies or production.
 
-## Telegram as the operating interface
+## Verification and references
 
-Ordinary messages become typed intents against the same SQLite jobs and configuration used by autonomous scheduling. The conversational process acknowledges durable work quickly; production and publishing run in the separate worker. There is no second chatbot-owned queue. Status reads actual job state, queue readiness, active requests and unresolved publication outcomes.
+Tests cover the actual native function-call/result/reply cycle, executor state changes before confirmation, read-only conversation without a command router, enqueue deduplication, access controls, budget races, publication uncertainty, source proofs, media cleanup and repository hygiene. Live-model checks run against isolated database copies with side effects disabled.
 
-An explicit “post the next Reel now” request binds its Telegram update ID to a job in `operator_requests`. It selects the oldest eligible queued job, or generates one under a stable request slot when the queue is empty. It can bypass the scheduled clock/temporary scheduling hold for that request only. It cannot override pause, authorization, automatic quality gates, spending limits or unknown publication outcomes. The resulting post counts in the scheduler’s existing daily count and spacing checks. Redelivery does not create another post. No new Telegram menu command is advertised.
-
-This is a bounded autonomous workflow with model-driven editorial choices and conversational intent routing, not unrestricted self-modifying code. New operational capabilities still require implementation and tests; the bot must not claim actions outside its executor.
-
-## Readiness buffer
-
-The autonomous worker keeps one approved, rendered Reel staged when generation is enabled. Scheduled posting consumes that queue before creating more work; a confirmed publication wakes the worker to refill. Readiness attempts are durable, capped at daily cadence plus one, and back off after failure. Pause and unresolved production/publication states suppress refill. Budget and novelty/quality gates remain authoritative; readiness is not guaranteed during provider outages or exhausted quotas. Media is temporary staging until publication, not an archive.
-
-## Operational retrieval and conversational grounding
-
-Every Telegram turn receives a fresh operational snapshot: global ready count, recent job stages, active requests, refill attempts and persisted preferences. It does not infer global queue emptiness from the last few jobs. The control model can request bounded, read-only retrieval from six named resources: queue, preferences, activity, research, experiments and budget. These queries use fixed SQL and approved metadata files; no credentials, arbitrary SQL, shell or filesystem access is exposed. At most three reads are permitted per turn. Earlier assistant prose is excluded from authoritative state to avoid repeating stale claims; recent user messages and retrievable action outcomes preserve follow-up context.
-
-The eligible Cloudflare Mistral model now handles conversational orchestration as well as editorial work. Chat remains in its own protected quota category with conservative reservations and provider-reported neuron reconciliation; no paid fallback. Its answers remain fallible, so the executor still validates permissions, typed arguments, budgets and publication state. Follow-up questions cannot write preferences merely because the model emitted a feedback field; preference writes require the idea action. The real model was tested with the operator's advice-storage and queue-readiness follow-ups without executing actions or sending Telegram messages.
+Primary design references: [Cloudflare function calling](https://developers.cloudflare.com/workers-ai/features/function-calling/traditional/), [Mistral model API](https://developers.cloudflare.com/workers-ai/models/mistral-small-3.1-24b-instruct/), [effective agents](https://www.anthropic.com/engineering/building-effective-agents), and [AWS idempotent APIs](https://aws.amazon.com/builders-library/making-retries-safe-with-idempotent-APIs/).

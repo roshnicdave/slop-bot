@@ -9,20 +9,24 @@ export default {
     if (request.method !== 'POST' || new URL(request.url).pathname !== '/run')
       return new Response('Not found', {status:404});
     const raw = await request.text();
-    if (raw.length > 22000) return new Response('Too large', {status:413});
+    if (raw.length > 48000) return new Response('Too large', {status:413});
     let data;
     try {data=JSON.parse(raw);} catch {return new Response('Bad JSON',{status:400});}
     const {model,input}=data;
     if (![CHAT,EDITOR,VOICE].includes(model) || !input) return new Response('Model denied',{status:400});
     if (model === CHAT || model === EDITOR) {
-      if (!Array.isArray(input.messages) || input.messages.length>12 ||
+      if (!Array.isArray(input.messages) || input.messages.length>24 ||
           !Number.isInteger(input.max_tokens) || input.max_tokens<1 || input.max_tokens>1400)
         return new Response('Profile denied',{status:400});
       // Input never gets access to AWS, the Instagram token, or Telegram tools.
-      const result = await env.AI.run(model, {
-        messages:input.messages, max_tokens:input.max_tokens,
-        temperature:0.35, response_format:{type:'json_object'}
-      });
+      const options = {messages:input.messages, max_tokens:input.max_tokens, temperature:0.2};
+      if (input.tools) {
+        if (!Array.isArray(input.tools) || input.tools.length > 12) return new Response('Tools profile denied',{status:400});
+        options.tools = input.tools.map(tool => ({type:"function",function:tool}));
+      } else options.response_format = {type:'json_object'};
+      let result;
+      try { result = await env.AI.run(model, options); }
+      catch (error) { return Response.json({success:false,error:String(error.message).slice(0,400)},{status:502}); }
       return Response.json({success:true,result});
     }
     if (typeof input.text!=='string' || input.text.length>600 || /[^\x00-\x7f]/.test(input.text))

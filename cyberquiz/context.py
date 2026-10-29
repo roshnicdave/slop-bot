@@ -30,6 +30,16 @@ def read(db, resource):
             "jobs",
             "SELECT id,status,approved,created,error,published_at FROM jobs ORDER BY created DESC LIMIT 8",
         )
+        ready = rows(
+            db,
+            "jobs",
+            "SELECT id,created,plan FROM jobs WHERE approved=1 AND status IN ('rendered','container_created') ORDER BY created LIMIT 3",
+        )
+        for item in ready:
+            plan = json.loads(item.pop("plan") or "{}")
+            item.update(
+                {key: plan.get(key) for key in ("question", "topic", "explanation")}
+            )
         return {
             "ready_count": db.execute(
                 "SELECT COUNT(*) FROM jobs WHERE approved=1 AND status IN ('rendered','container_created')"
@@ -38,11 +48,7 @@ def read(db, resource):
                 db, "jobs", "SELECT status,COUNT(*) AS count FROM jobs GROUP BY status"
             ),
             "recent_jobs": jobs,
-            "ready": rows(
-                db,
-                "jobs",
-                "SELECT id,created FROM jobs WHERE approved=1 AND status IN ('rendered','container_created') ORDER BY created LIMIT 3",
-            ),
+            "ready": ready,
         }
     if resource == "preferences":
         return {
@@ -59,6 +65,11 @@ def read(db, resource):
                 db,
                 "telegram_updates",
                 "SELECT id,status,command FROM telegram_updates WHERE status IN ('queued','running') ORDER BY id LIMIT 5",
+            ),
+            "execution_receipts": rows(
+                db,
+                "action_receipts",
+                "SELECT action,phase,result,created FROM action_receipts ORDER BY created DESC LIMIT 5",
             ),
             "work_results": rows(
                 db,
@@ -112,6 +123,11 @@ def snapshot(db):
     auth = json.loads(marker.read_text()) if marker.exists() else {}
     return {
         "observed_at": now(),
+        "recent_tool_receipts": rows(
+            db,
+            "action_receipts",
+            "SELECT action,phase,result,created FROM action_receipts ORDER BY created DESC LIMIT 3",
+        ),
         "instagram_access": {k: auth.get(k) for k in ("valid", "reason", "checked_at")},
         "generation_enabled": cfg.get("generation_enabled"),
         "publishing_enabled": cfg.get("publishing_enabled"),

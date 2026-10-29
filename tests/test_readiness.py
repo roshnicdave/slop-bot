@@ -67,6 +67,9 @@ class ReadinessTests(unittest.TestCase):
                 "cyberquiz.telegram.config", return_value={"telegram_owner_user_id": 1}
             ),
             patch("cyberquiz.telegram.send") as send,
+            patch(
+                "cyberquiz.agent.event_reply", side_effect=lambda db, op, facts: facts
+            ),
         ):
             notify(self.db, "published:job", "Posted: link")
             notify(self.db, "published:job", "Posted: link")

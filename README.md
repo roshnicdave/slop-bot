@@ -6,7 +6,7 @@ An AWS-hosted agent for cybersecurity and networking quiz Reels, controlled thro
 
 - Two daily posting experiments; the agent proposes times from its own account history. Exact times are hypotheses until there is comparable evidence. The worker sleeps until a deadline or a Telegram wake signal.
 - Routine factual, wording, layout, narration and media checks are automatic. Rejected candidates are skipped; unsupported claims never bypass a gate to fill a schedule.
-- Telegram has one advertised command, `/budget`; ordinary messages use a concise LLM control plane. Previews and non-publication alerts go only to the owner. Confirmed publication notifications go to both authorized chats.
+- Telegram has one advertised command, `/budget`; all messages go directly to one agent with native function calling and generated replies. Previews and non-publication alerts go only to the owner. Confirmed publication notifications go to both authorized chats.
 - Read live state in Telegram; deployment preserves operator controls and spending limits. The example configuration starts with publishing disabled.
 
 ## Content and learning

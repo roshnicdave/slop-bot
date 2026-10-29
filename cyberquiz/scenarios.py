@@ -297,7 +297,7 @@ def plan(scene, creative, job):
         + "\n\nPick A, B, C or D before the reveal.\n\n"
         "Explanation: " + p["explanation"] + "\n" + p["fix"] + "\n\n"
         "Assumptions: " + p["clue"] + "\nSource: " + p["source_url"] + "\n\n"
-        "Follow @cybersec.peter for visual networking challenges.\n#networking #cybersecurity #networkengineer"
+        "Follow for visual networking challenges.\n#networking #cybersecurity #networkengineer"
     )
     p["creative"] = creative
     return p

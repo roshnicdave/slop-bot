@@ -7,7 +7,7 @@ An AWS-hosted agent for cybersecurity and networking quiz Reels, controlled thro
 - Two daily posting experiments; the agent proposes times from its own account history. Exact times are hypotheses until there is comparable evidence. The worker sleeps until a deadline or a Telegram wake signal.
 - Routine factual, wording, layout, narration and media checks are automatic. Rejected candidates are skipped; unsupported claims never bypass a gate to fill a schedule.
 - Telegram has one advertised command, `/budget`; ordinary messages use a concise LLM control plane. Previews and non-publication alerts go only to the owner. Confirmed publication notifications go to both authorized chats.
-- The owner approved the navy format and enabled autonomous operation on 2026-10-28. Read live state in Telegram; deployment preserves operator controls and spending limits.
+- Read live state in Telegram; deployment preserves operator controls and spending limits. The example configuration starts with publishing disabled.
 
 ## Content and learning
 
@@ -25,7 +25,7 @@ SQLite stores jobs, source evidence, concept history, experiments, usage and Tel
 
 Cloudflare Workers Free handles the LLM control/research plane under a shared 8,000-neuron daily reservation ceiling. Selected ElevenLabs Chris narration is metered at the verified Fal rate of $0.10/1,000 characters, with the shared $1.80 rolling monthly and $0.03 production-job caps enforced before submission. The six-cent preview experiment has its own ceiling. Other paid models and fallback providers remain disabled. Estimated usage is not an invoice reconciliation.
 
-At about 200–250 spoken characters per Reel, 60 Reels cost approximately $1.20–$1.50 in narration before retries or tests; caps can stop production. The existing Lightsail instance costs $5/month separately. No new server, paid Cloudflare plan or D1 service was added.
+At about 200–250 spoken characters per Reel, 60 Reels cost approximately $1.20–$1.50 in narration before retries or tests; caps can stop production. Hosting costs are separate and depend on the deployment. No new server, paid Cloudflare plan or D1 service was added.
 
 ## Development
 

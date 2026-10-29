@@ -208,9 +208,7 @@ class AgentSafetyTests(unittest.TestCase):
             with (
                 patch(
                     "cyberquiz.telegram.config",
-                    return_value={
-                        "telegram_allowed_user_ids": [8010764520, 8861370667]
-                    },
+                    return_value={"telegram_allowed_user_ids": [1001, 1002]},
                 ),
                 patch("cyberquiz.telegram.send") as send,
             ):
@@ -240,7 +238,7 @@ class AgentSafetyTests(unittest.TestCase):
             with (
                 patch(
                     "cyberquiz.telegram.config",
-                    return_value={"telegram_allowed_user_ids": [8010764520]},
+                    return_value={"telegram_allowed_user_ids": [1001]},
                 ),
                 patch("cyberquiz.telegram.send"),
             ):
@@ -249,7 +247,7 @@ class AgentSafetyTests(unittest.TestCase):
                     {
                         "update_id": 1,
                         "message": {
-                            "from": {"id": 8010764520},
+                            "from": {"id": 1001},
                             "chat": {"id": -1, "type": "group"},
                             "text": "/resume",
                         },

@@ -375,7 +375,7 @@ def plan(fact, creative, job):
         "outro": outro,
         "hook": hook,
         "image_prompt": str(creative["image_prompt"])[:900],
-        "caption": f"{fact['question']}\n\nAnswer: {letters[correct]}. {fact['explanation']}\n\nSource: {fact['source_label']}\n{fact['source_url']}\n{fact.get('reference_url', '')}\n\nFollow @cybersec.peter for practical networking and security questions.\n#networking #cybersecurity #networkengineer",
+        "caption": f"{fact['question']}\n\nAnswer: {letters[correct]}. {fact['explanation']}\n\nSource: {fact['source_label']}\n{fact['source_url']}\n{fact.get('reference_url', '')}\n\nFollow for practical networking and security questions.\n#networking #cybersecurity #networkengineer",
         "format": creative.get("format", "quiz")
         if creative.get("format") in ["quiz", "challenge"]
         else "quiz",

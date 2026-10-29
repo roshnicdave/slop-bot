@@ -1,12 +1,12 @@
 # Slop Bot operating contract
 
-Updated 2026-10-28. Credentials and private conversations never belong in source.
+Credentials, deployment identity and private conversations never belong in source.
 
 ## Product
 
 Build the autonomous system on the existing AWS Lightsail server. Telegram is its operational interface; Codex is not a daily operator. Research primary cybersecurity/networking sources daily, select diagnostic puzzles, verify the answer, render narrated Reels, publish through the official API and learn from measured outcomes. No routine human content approvals.
 
-Target two posts daily. Posting times are recorded experiments based on account observations, never claims of guaranteed optimal hours. The owner approved the latest navy preview and explicitly enabled autonomous generation and publication on 2026-10-28. An additional publication guard runs until 2026-10-29 09:00 America/Los_Angeles.
+Target two posts daily. Posting times are recorded experiments based on account observations, never claims of guaranteed optimal hours. Live enablement, time zones and temporary holds are deployment settings.
 
 ## Content and presentation
 
@@ -37,11 +37,11 @@ Target two posts daily. Posting times are recorded experiments based on account 
 
 ## Telegram and publishing
 
-- Authorized users: owner 8010764520 and friend 8861370667. Both share one queue and budget. Other users/groups cannot control it.
+- Authorized operators are configured locally. They share one queue and budget. Other users/groups cannot control it.
 - Advertise only /budget. Normal chat supports concise status, preferences, pause/resume, scheduling and production controls through the LLM; deterministic budget/status paths remain fast.
 - Send previews and non-publication alerts only to the owner. Notify both registered private chats after confirmed publication, including the post link.
-- Instagram @cybersec.peter is connected through the verified Page credential. First confirmed Reel: https://www.instagram.com/reel/DfEK7ayDdup/. Autonomous posting is enabled; Telegram controls the live state.
+- Connect a professional Instagram account through the official API. Telegram controls live state; never put account identifiers or authorization credentials in source.
 
 ## Repository
 
-Slop Bot is developed separately in /Users/rd/Documents/ChatGPT/insta. Never commit secrets, runtime databases, generated media or private chat history. Resolve the latest explicit repository restriction before pushing; do not copy this project into another repository merely to bypass it.
+Slop Bot is a standalone repository. Never commit secrets, runtime databases, generated media or private chat history. Resolve the latest explicit repository restriction before pushing; do not copy this project into another repository merely to bypass it.

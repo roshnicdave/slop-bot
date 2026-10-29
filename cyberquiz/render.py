@@ -121,7 +121,6 @@ def panel(plan, path, reveal=False, count=None):
     label = plan["source_label"]
     block(d, "SOURCE / " + label, (44, 1088), 15, 610, MUTED, max_lines=2)
     d.line((44, 1148, 674, 1148), fill=(*MUTED, 120), width=1)
-    d.text((44, 1168), "@cybersec.peter", font=font(22, True), fill=WHITE)
     d.text((465, 1172), "LEARN / REPEAT", font=font(15), fill=CYAN)
     im.save(path)
 

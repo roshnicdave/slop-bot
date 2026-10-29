@@ -171,7 +171,7 @@ def llm(db, operation, messages, kind="research", max_tokens=1000):
     if size > 18000:
         raise ValueError("Research context exceeds bounded profile")
     # At published 4,119 neurons/M input, 34,868/M output. Add 25% headroom.
-    model = EDITOR if kind == "editorial" else LLM
+    model = EDITOR if kind in ("editorial", "chat", "control") else LLM
     input_rate, output_rate = (31876, 50488) if model == EDITOR else (4119, 34868)
     neurons = (
         math.ceil((size * input_rate + max_tokens * output_rate) / 1e6 * 1.25) + 10

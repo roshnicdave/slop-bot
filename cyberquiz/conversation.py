@@ -76,11 +76,12 @@ def process(ident):
             "policy": "Cloudflare LLMs use the free daily quota. The selected premium male voice is metered within the shared monthly spending cap; no paid model fallback. Both users share the queue. Posting requires Instagram authorization and automatic quality gates. No routine human approvals. No guarantee of virality. New visuals show a diagram, 4 choices, AI voice, answer and fix.",
             "capabilities": "daily primary-source discovery of new topics, 50-Reel concept cooldown and persistent history; executable or source-grounded fact checks; selected male narration; local rendering; no automatic competitor video vision yet",
         }
+        from .context import snapshot
+
+        context["live"] = snapshot(db)
         started = time.monotonic()
         out = chat.propose(db, "chat:" + str(ident), message, context, user)
         feedback = out.get("feedback")
-        if isinstance(feedback, str) and 0 < len(feedback) <= 500:
-            chat.preference(db, user, feedback)
         action = out.get("action")
         job = str(out.get("job_id", "")).strip()
         reply = ""
@@ -193,8 +194,12 @@ def process(ident):
                     pass  # accepted work survives an acknowledgement failure
                 return
         elif action == "idea":
-            chat.preference(db, user, message)
-            reply = "Saved for upcoming videos."
+            chat.preference(
+                db,
+                user,
+                feedback if isinstance(feedback, str) and feedback.strip() else message,
+            )
+            reply = "Saved as a preference for future research and scripts. Already rendered videos stay as they are."
         elif action == "explain":
             if not job:
                 job = next((j["id"] for j in summary if j["status"] == "rendered"), "")

@@ -23,7 +23,7 @@ The technical diagram, dark palette, Inter typography, no-subheading rule, short
 
 SQLite stores jobs, source evidence, concept history, experiments, usage and Telegram file IDs. No additional database service or local inference model is needed. Media exists only while rendering/transmitting: private preview media is deleted after Telegram delivery; published media is deleted after a confirmed Instagram receipt. Telegram previews can be resent using file IDs. Pending publishing artifacts remain staged until their outcome is known.
 
-Cloudflare Workers Free handles the LLM control/research plane under a shared 8,000-neuron daily reservation ceiling. Selected ElevenLabs Chris narration is metered at the verified Fal rate of $0.10/1,000 characters, with the shared $1.80 rolling monthly and $0.03 production-job caps enforced before submission. The six-cent preview experiment has its own ceiling. Other paid models and fallback providers remain disabled. Estimated usage is not an invoice reconciliation.
+Cloudflare Workers Free handles the LLM control/research plane under a shared 10,000-neuron daily reservation ceiling. Selected ElevenLabs Chris narration is metered at the verified Fal rate of $0.10/1,000 characters, with the shared $1.80 rolling monthly and $0.03 production-job caps enforced before submission. The six-cent preview experiment has its own ceiling. Other paid models and fallback providers remain disabled. Estimated usage is not an invoice reconciliation.
 
 At about 200–250 spoken characters per Reel, 60 Reels cost approximately $1.20–$1.50 in narration before retries or tests; caps can stop production. Hosting costs are separate and depend on the deployment. No new server, paid Cloudflare plan or D1 service was added.
 

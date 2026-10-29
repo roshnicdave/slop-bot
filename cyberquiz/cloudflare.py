@@ -55,7 +55,7 @@ def reserve(db, operation, kind, neurons):
             "SELECT COALESCE(SUM(COALESCE(accounted_neurons,neurons)),0) FROM cf_calls WHERE day=?",
             (day,),
         ).fetchone()[0]
-        if total + neurons > int(c.get("cf_daily_neuron_limit", 8000)):
+        if total + neurons > int(c.get("cf_daily_neuron_limit", 10000)):
             raise FreeQuotaDeferred(
                 "Shared Cloudflare free allowance reserved; wait until UTC reset"
             )
@@ -70,7 +70,7 @@ def reserve(db, operation, kind, neurons):
         if category is None:
             raise ValueError("Unknown quota category")
         limit = {
-            "chat": c.get("cf_chat_neuron_limit", c.get("cf_daily_neuron_limit", 8000)),
+            "chat": c.get("cf_chat_neuron_limit", c.get("cf_daily_neuron_limit", 10000)),
             "voice": 3000,
             "research": c.get("cf_research_neuron_limit", 3000),
         }[category]

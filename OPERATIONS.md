@@ -20,7 +20,7 @@ Tests cover source-proof binding, 50-Reel history, numerical disguises of duplic
 
 ## Costs and failure handling
 
-Cloudflare uses a shared 8,000-neuron UTC-day ceiling; chat is protected from research consumption. Eligible inference stops when Free is exhausted. The selected premium voice has its own pricing check plus shared rolling monthly/per-job reservations; it is an explicit voice choice, never a model fallback. The private preview experiment is capped at six cents. Fal invoice reporting remains unavailable, so report reservations separately from reconciled billing.
+Cloudflare uses a shared 10,000-neuron UTC-day ceiling; chat is protected from research consumption. Eligible inference stops when Free is exhausted. The selected premium voice has its own pricing check plus shared rolling monthly/per-job reservations; it is an explicit voice choice, never a model fallback. The private preview experiment is capped at six cents. Fal invoice reporting remains unavailable, so report reservations separately from reconciled billing.
 
 Source attempts and failed drafts are bounded. Unsupported facts, ambiguous answers, duplicates and media failures hold production. Unknown provider results retain their reservation and request identity. Instagram unknown publish results block reposting; inspect saved container/request/account state before any recovery. Never reset such a job to a fresh submission merely because a timeout occurred.
 

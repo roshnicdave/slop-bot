@@ -210,7 +210,7 @@ def status_text(db, budget_only=False):
     if budget_only:
         return (
             f"Paid AI: ${r['reserved_31_days_usd']:.4f} reserved / ${c['monthly_budget_usd']:.2f} monthly cap\n"
-            f"Free AI today: {free:,}/{c.get('cf_daily_neuron_limit', 8000):,} quota used/reserved (UTC)"
+            f"Free AI today: {free:,}/{c.get('cf_daily_neuron_limit', 10000):,} quota used/reserved (UTC)"
         )
     generation = (
         "paused"

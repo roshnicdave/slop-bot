@@ -4,7 +4,8 @@ import json
 from .store import config, now, ROOT
 
 CATALOG = {
-    "queue": "Ready/published job counts, recent jobs and current production stages.",
+    "status": "Compact live state without changing anything.",
+    "queue": "Questions, diagrams and explanations for ready/recently published Reels, plus current job states.",
     "preferences": "Persisted operator advice with IDs, timestamps and how production uses it.",
     "activity": "Queued/running operator work, recent outcomes and readiness refill attempts.",
     "research": "Latest topic-wide Reel discovery, sampled visual findings, and primary-source editorial research.",
@@ -24,6 +25,8 @@ def rows(db, table, sql, params=()):
 def read(db, resource):
     if resource not in CATALOG:
         raise ValueError("Unknown read resource")
+    if resource == "status":
+        return snapshot(db)
     if resource == "queue":
         jobs = rows(
             db,
@@ -42,7 +45,21 @@ def read(db, resource):
         )
         for item in ready + published:
             plan = json.loads(item.pop("plan") or "{}")
-            item.update({key: plan.get(key) for key in ("question", "topic")})
+            item.update(
+                {
+                    key: plan.get(key)
+                    for key in (
+                        "question",
+                        "topic",
+                        "family",
+                        "explanation",
+                        "diagram",
+                        "options",
+                        "answer",
+                        "source_url",
+                    )
+                }
+            )
         return {
             "ready_count": db.execute(
                 "SELECT COUNT(*) FROM jobs WHERE approved=1 AND status IN ('rendered','container_created')"
@@ -148,7 +165,12 @@ def read(db, resource):
 def snapshot(db):
     cfg = config()
     queue = read(db, "queue")
+    active_jobs = queue["recent_jobs"]
+    last_post = queue["published"][0] if queue["published"] else {}
     queue = {k: queue[k] for k in ("ready_count", "ready", "published_total")}
+    queue["ready"] = [
+        {k: item.get(k) for k in ("id", "question", "topic")} for item in queue["ready"]
+    ]
     marker = ROOT / "data" / "meta-auth-health.json"
     auth = json.loads(marker.read_text()) if marker.exists() else {}
     blockers = []
@@ -186,4 +208,9 @@ def snapshot(db):
             "refill": "After consumption, on worker wakes; subject to budget, quality, novelty, daily attempt cap and failure backoff.",
         },
         "queue": queue,
+        "in_progress": active_jobs,
+        "last_published": {
+            k: last_post.get(k)
+            for k in ("id", "question", "explanation", "source_url", "family")
+        },
     }

@@ -125,7 +125,8 @@ class ReadinessTests(unittest.TestCase):
             )
             generate.assert_called_once()
 
-    def test_real_failed_jobs_still_exhaust_daily_generation_allowance(self):
+    def test_failed_drafts_respect_their_own_daily_attempt_limit(self):
+        self.cfg["daily_draft_attempt_limit"] = 3
         from cyberquiz.store import now
 
         self.db.execute(
@@ -171,3 +172,64 @@ class ReadinessTests(unittest.TestCase):
             self.db.execute("SELECT status FROM readiness_attempts").fetchone()[0],
             "held_quality",
         )
+
+    def test_free_quality_holds_do_not_exhaust_media_allowance(self):
+        from cyberquiz.store import now
+
+        self.db.execute(
+            "CREATE TABLE readiness_attempts(id INTEGER PRIMARY KEY,created TEXT,status TEXT,job TEXT)"
+        )
+        for i in range(1, 4):
+            self.db.execute(
+                "INSERT INTO readiness_attempts VALUES(?,?,?,NULL)",
+                (i, now(), "complete"),
+            )
+            job = new_job(self.db, "held", "buffer:" + str(i))
+            self.db.execute("UPDATE jobs SET status='held_quality' WHERE id=?", (job,))
+        self.db.commit()
+
+        def make(db, slot):
+            job = new_job(db, "ready", slot)
+            db.execute(
+                "UPDATE jobs SET status='rendered',approved=1 WHERE id=?", (job,)
+            )
+            db.commit()
+            return job
+
+        with (
+            patch("cyberquiz.readiness.config", return_value=self.cfg),
+            patch(
+                "cyberquiz.readiness.worker_lock", side_effect=contextlib.nullcontext
+            ),
+            patch("cyberquiz.production.make", side_effect=make) as generate,
+        ):
+            self.assertNotEqual(ensure(self.db), "daily_limit")
+            generate.assert_called_once()
+
+    def test_failed_paid_jobs_still_exhaust_media_allowance(self):
+        from cyberquiz.store import now
+
+        self.db.execute(
+            "CREATE TABLE readiness_attempts(id INTEGER PRIMARY KEY,created TEXT,status TEXT,job TEXT)"
+        )
+        for i in range(1, 4):
+            self.db.execute(
+                "INSERT INTO readiness_attempts VALUES(?,?,?,NULL)",
+                (i, now(), "complete"),
+            )
+            job = new_job(self.db, "failed", "buffer:" + str(i))
+            self.db.execute("UPDATE jobs SET status='failed' WHERE id=?", (job,))
+            self.db.execute(
+                "INSERT INTO charges(id,job,kind,created,reserved,status) VALUES(?,?,?,?,?,?)",
+                (str(i), job, "voice", now(), 1, "reserved"),
+            )
+        self.db.commit()
+        with (
+            patch("cyberquiz.readiness.config", return_value=self.cfg),
+            patch(
+                "cyberquiz.readiness.worker_lock", side_effect=contextlib.nullcontext
+            ),
+            patch("cyberquiz.production.make") as generate,
+        ):
+            self.assertEqual(ensure(self.db), "daily_limit")
+            generate.assert_not_called()

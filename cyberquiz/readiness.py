@@ -57,20 +57,33 @@ def ensure(db, recover_preflight=False):
         ):
             return "backoff"
         local = clock.astimezone(ZoneInfo(cfg["timezone"]))
-        # Only an attempt that actually created a production job consumes the daily
-        # generation allowance. Preflight failures cannot exhaust a day's output.
-        count = sum(
-            dt.datetime.fromisoformat(r[1]).astimezone(ZoneInfo(cfg["timezone"])).date()
-            == local.date()
-            and bool(
-                db.execute(
-                    "SELECT 1 FROM jobs WHERE slot=? OR slot LIKE ? LIMIT 1",
-                    ("buffer:" + str(r[0]), "buffer:" + str(r[0]) + ":%"),
-                ).fetchone()
-            )
+        # Free rejected drafts have a separate cap from media/paid attempts.
+        # A failed editor must not consume the entire day's production allowance.
+        attempts = [
+            r
             for r in db.execute("SELECT id,created FROM readiness_attempts")
-        )
-        if count >= cfg["posts_per_day"] + 1:
+            if dt.datetime.fromisoformat(r[1])
+            .astimezone(ZoneInfo(cfg["timezone"]))
+            .date()
+            == local.date()
+        ]
+        drafted = produced = 0
+        for entry in attempts:
+            jobs = db.execute(
+                "SELECT id,status FROM jobs WHERE slot=? OR slot LIKE ?",
+                ("buffer:" + str(entry[0]), "buffer:" + str(entry[0]) + ":%"),
+            ).fetchall()
+            drafted += bool(jobs)
+            produced += any(
+                j["status"] not in ("held_quality", "failed", "rejected", "drafting")
+                or db.execute(
+                    "SELECT 1 FROM charges WHERE job=? LIMIT 1", (j["id"],)
+                ).fetchone()
+                for j in jobs
+            )
+        if produced >= cfg["posts_per_day"] + 1 or drafted >= cfg.get(
+            "daily_draft_attempt_limit", 2 * (cfg["posts_per_day"] + 1)
+        ):
             return "daily_limit"
         cursor = db.execute(
             "INSERT INTO readiness_attempts(created,status) VALUES(?,?)",

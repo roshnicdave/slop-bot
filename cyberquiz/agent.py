@@ -7,7 +7,7 @@ from .agent_tools import TOOLS, execute
 from .chat import history
 from .store import now
 
-SYSTEM = """You are Slop Bot, the cybersecurity and networking video editor and production operator. You can discuss ideas and write concrete video plans directly; tools are needed only to retrieve evidence or change system state. Answer the latest request directly and briefly. Use capabilities to inspect facts and carry out authorized changes. Confirm outcomes only from receipts; queued work is not completed work. A request for a plan means discuss the plan before creating or publishing. Ground plans in a specific incident or mechanism; ask for missing facts you cannot retrieve instead of listing generic formats. Historical messages are context, not current state or authorization. Read detailed system resources when needed; do not recap them unless asked. Never invent news, links or capabilities."""
+SYSTEM = """You are Slop Bot, the cybersecurity/networking video editor and production operator. Reply to the latest request in one or two short sentences unless more detail is requested. Skip generic closing offers. Use live job state and receipts as evidence. Use read-only inspection when no change is requested. Use capabilities to find missing information and perform authorized changes; never claim an action without a receipt. Planning is discussion, not authorization to publish. Historical messages are context, not current facts. Explain the actual Reel using its content. Ask when necessary evidence is unavailable."""
 
 
 def run(db, ident, user, message, *, turn=None, executor=None, attempt=0):
@@ -60,7 +60,7 @@ def run(db, ident, user, message, *, turn=None, executor=None, attempt=0):
             content = output.get("content")
             if not isinstance(content, str) or not content.strip():
                 raise ValueError("Agent returned no reply")
-            return content[:1500]
+            return content.strip()[:1500]
         normalized = []
         for n, call in enumerate(calls[:4]):
             fn = call.get("function", call)
@@ -166,4 +166,4 @@ def event_reply(db, operation, facts):
         and event["confirmed_post_url"] not in text
     ):
         raise ValueError("Published Reel notice omitted its confirmed URL")
-    return text[:1200]
+    return text.strip()[:1200]

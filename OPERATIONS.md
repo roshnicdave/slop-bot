@@ -89,3 +89,9 @@ The generated notice must preserve that URL. A failed permalink lookup does not 
 an account profile URL into a supposed post link. Quality holds do not send a second
 low-level notice on top of the readiness health alert. A newer review version permits
 retrying the old review's backoff, while retaining all daily and monetary limits.
+
+Free draft failures consume a bounded draft allowance rather than the media/paid
+attempt allowance. Paid or produced attempts still count toward that separate cap;
+monthly/per-job reservations and the shared free quota remain enforced. A publishing
+pause is rechecked after Meta processing and before final submission. It cannot
+reverse a publication already accepted by Meta.

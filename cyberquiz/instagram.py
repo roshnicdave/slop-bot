@@ -164,6 +164,11 @@ def _publish(db, job, *, immediate=False):
         raise RuntimeError(
             "Container still processing. Safe to poll again later; no new submission."
         )
+    current = config()
+    if current.get("emergency_pause") or not current.get("publishing_enabled"):
+        raise ValueError(
+            "Publication paused before final submission; container retained"
+        )
     # Commit BEFORE publishing. On timeout leave publish_unknown and reconcile manually.
     db.execute("UPDATE jobs SET status=? WHERE id=?", ("publish_unknown", job))
     db.commit()

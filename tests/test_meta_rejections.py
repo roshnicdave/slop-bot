@@ -58,3 +58,55 @@ class MetaRejectionTests(unittest.TestCase):
                     else:
                         update.assert_not_called()
                 b.close()
+
+    def test_pause_during_meta_processing_prevents_final_publication(self):
+        for changed in ({"publishing_enabled": False}, {"emergency_pause": True}):
+            with tempfile.TemporaryDirectory() as folder:
+                b = connect(Path(folder) / "state.sqlite")
+                job = new_job(b, "test")
+                p = {
+                    "visual": False,
+                    "family": "test",
+                    "caption": "test",
+                    "question": "test",
+                }
+                b.execute(
+                    "UPDATE jobs SET status='container_created',approved=1,container_id='known',plan=? WHERE id=?",
+                    (json.dumps(p), job),
+                )
+                b.commit()
+                cfg = {
+                    "publishing_enabled": True,
+                    "public_media_base_url": "https://example.com/media",
+                }
+                with (
+                    patch(
+                        "cyberquiz.instagram.config",
+                        side_effect=[cfg, {**cfg, **changed}],
+                    ),
+                    patch(
+                        "cyberquiz.instagram.secrets",
+                        return_value={
+                            "IG_ACCESS_TOKEN": "hidden",
+                            "IG_USER_ID": "test",
+                        },
+                    ),
+                    patch(
+                        "cyberquiz.instagram.graph",
+                        return_value={"status_code": "FINISHED"},
+                    ) as graph,
+                ):
+                    with self.assertRaisesRegex(
+                        ValueError, "paused before final submission"
+                    ):
+                        publish(b, job, immediate=True)
+                self.assertEqual(
+                    [call.args[0] for call in graph.call_args_list], ["GET"]
+                )
+                self.assertEqual(
+                    b.execute("SELECT status FROM jobs WHERE id=?", (job,)).fetchone()[
+                        0
+                    ],
+                    "container_created",
+                )
+                b.close()

@@ -17,7 +17,7 @@ flowchart LR
 
 ## Conversation
 
-Every message, including the budget menu entry, goes directly to the same Cloudflare Mistral agent. It receives a compact live summary, recent operator messages and native function definitions. Detailed activity, research, preferences and budget records are read on demand. The model may read more evidence or call a capability, consume its result, then write a normal reply. There is no phrase classifier, separate action-selection inference, or reply-template layer. `chat.py` only stores conversation memory and preferences.
+Every message, including the budget menu entry, goes directly to the same Cloudflare Qwen agent. It receives a compact live summary, recent operator messages and native function definitions. Detailed activity, research, preferences and budget records are read on demand. The model may read more evidence or call a capability, consume its result, then write a normal reply. There is no phrase classifier, separate action-selection inference, or reply-template layer. `chat.py` only stores conversation memory and preferences.
 
 `agent.py` owns the bounded function-calling loop. `agent_tools.py` exposes operational reads, run/pause, publishing, schedule, budget reduction, saved preferences and work enqueueing. Schemas describe API inputs, not user command phrases. Backend functions enforce access, typed arguments, spending limits and publication invariants. Neither prompts nor model output can grant credentials or arbitrary shell access.
 
@@ -118,3 +118,16 @@ a paid fallback. Reveals and caption explanations retain verified scene wording.
 Rejected candidates are excluded from selection for 24 hours so a fallback cannot
 repeat the same failed draft. Readiness retains rejection reasons; its health notice
 is the single automatic refill-failure alert.
+
+The compact context retains current in-progress jobs and the latest published Reel's
+verified explanation. Full diagrams and options are available through queue inspection.
+The pause capability describes both scheduled and in-progress publication; final Meta
+submission rechecks pause state. Conversation, notifications and hook drafting use the
+same free Qwen profile; source research retains its separate bounded profile.
+
+Each new conversational turn requires a native capability call before its final reply.
+The model chooses the capability; ordinary conversation can inspect read-only status.
+The client rejects provider responses that omit the required call. Once a tool receipt
+exists, the model can answer without calling it again. Workers AI's Qwen adapter sends
+empty string content for assistant tool-call messages while preserving the durable
+provider-neutral transcript, whose content may be null.

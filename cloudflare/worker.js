@@ -44,6 +44,10 @@ export default {
       if (input.tools) {
         if (!Array.isArray(input.tools) || input.tools.length > 12) return new Response('Tools profile denied',{status:400});
         options.tools = input.tools.map(tool => ({type:"function",function:tool}));
+        if (input.tool_choice) {
+          if (!['auto','required','none'].includes(input.tool_choice)) return new Response('Tool choice denied',{status:400});
+          options.tool_choice = input.tool_choice;
+        }
       } else options.response_format = {type:'json_object'};
       let result;
       try { result = await env.AI.run(model, options); }

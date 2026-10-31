@@ -20,7 +20,7 @@ def tool(name, description, properties, required=()):
 TOOLS = [
     tool(
         "read_system",
-        "Retrieve live details from the operating system.",
+        "Inspect live state without changing anything. Use status for a compact snapshot; other resources provide detailed evidence.",
         {"resource": {"type": "string", "enum": list(CATALOG)}},
         ["resource"],
     ),
@@ -32,7 +32,7 @@ TOOLS = [
     ),
     tool(
         "set_publishing",
-        "Enable or pause the automatic schedule only. This does not submit a Reel for publication.",
+        "Enable or pause publication, including an ongoing video that Meta has not yet published. Disabling prevents final submission; it cannot undo a confirmed post. Enabling does not itself submit a Reel.",
         {"enabled": {"type": "boolean"}},
         ["enabled"],
     ),
@@ -50,7 +50,7 @@ TOOLS = [
     ),
     tool(
         "save_preference",
-        "Persist new operator advice for research and scripts.",
+        "Save explicit durable instructions about future content. Do not store routine conversation.",
         {"text": {"type": "string"}},
         ["text"],
     ),

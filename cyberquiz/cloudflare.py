@@ -284,23 +284,42 @@ def voice(db, job, label, text, path):
     return path
 
 
-def agent_turn(db, operation, messages, tools):
+def agent_turn(db, operation, messages, tools, *, model=REVIEW):
+    # Workers AI's Qwen schema requires string content on assistant tool calls.
+    # Preserve the provider-neutral durable transcript, normalize only on send.
+    messages = [
+        dict(m, content="" if m.get("content") is None else m["content"])
+        for m in messages
+    ]
+    if model == REVIEW:
+        messages = [dict(m) for m in messages]
+        messages[0]["content"] += "\n/no_think"
     body = {
         "messages": messages,
         "tools": tools,
         "max_tokens": AGENT_OUTPUT_TOKENS,
         "temperature": 0.2,
     }
+    require_tool = bool(tools) and not any(m.get("role") == "tool" for m in messages)
+    if require_tool:
+        body["tool_choice"] = "required"
     size = len(json.dumps(body).encode())
     if size > 44000:
         raise ValueError("Agent context limit reached")
-    neurons = math.ceil((size * 31876 + AGENT_OUTPUT_TOKENS * 50488) / 1e6 * 1.25) + 10
-    response = request(db, operation, "control", EDITOR, body, neurons).json()
+    input_rate, output_rate = (4625, 30475) if model == REVIEW else (31876, 50488)
+    neurons = (
+        math.ceil((size * input_rate + AGENT_OUTPUT_TOKENS * output_rate) / 1e6 * 1.25)
+        + 10
+    )
+    response = request(db, operation, "control", model, body, neurons).json()
     if not response.get("success"):
         raise RuntimeError("Agent provider did not report success")
     result = response["result"]
     choice = (result.get("choices") or [{}])[0].get("message", {})
+    calls = choice.get("tool_calls") or result.get("tool_calls") or []
+    if require_tool and not calls:
+        raise CloudflareRequestError("Cloudflare omitted the required capability call")
     return {
         "content": choice.get("content") or result.get("response") or "",
-        "tool_calls": choice.get("tool_calls") or result.get("tool_calls") or [],
+        "tool_calls": calls,
     }

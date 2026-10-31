@@ -101,3 +101,50 @@ class HealthTests(unittest.TestCase):
             publish.reset_mock()
             continue_publication(db, dict(self.cfg, emergency_pause=True))
             publish.assert_not_called()
+
+    def test_changing_failure_details_does_not_repeat_outage_alert(self):
+        with (
+            patch("cyberquiz.health.config", return_value=self.cfg),
+            patch("cyberquiz.health.findings") as issues,
+            patch("cyberquiz.telegram.notify") as notify,
+        ):
+            issues.return_value = [{"kind": "queue_empty", "failure": "first"}]
+            check(self.db)
+            issues.return_value = [{"kind": "queue_empty", "failure": "second"}]
+            check(self.db)
+            self.assertEqual(notify.call_count, 1)
+
+    def test_missed_slot_is_separate_from_current_outage_and_recovery(self):
+        missed = {"kind": "missed_post", "slot": "2026-10-30T12:35:00+00:00"}
+        with (
+            patch("cyberquiz.health.config", return_value=self.cfg),
+            patch("cyberquiz.health.findings") as issues,
+            patch("cyberquiz.telegram.notify") as notify,
+        ):
+            issues.return_value = [missed, {"kind": "queue_empty"}]
+            check(self.db)
+            issues.return_value = [missed]
+            check(self.db)
+            events = [
+                json.loads(call.args[2])["event"] for call in notify.call_args_list
+            ]
+            self.assertEqual(
+                events,
+                ["scheduled_post_missed", "pipeline_blocked", "pipeline_recovered"],
+            )
+
+    def test_worker_tick_cannot_clear_monitor_service_failure(self):
+        with (
+            patch("cyberquiz.health.config", return_value=self.cfg),
+            patch("cyberquiz.health.findings") as issues,
+            patch("cyberquiz.telegram.notify") as notify,
+        ):
+            issues.return_value = [
+                {"kind": "service_down", "service": "worker", "state": "failed"}
+            ]
+            check(self.db, services={"worker": "failed"})
+            issues.return_value = []
+            check(self.db)
+            self.assertEqual(notify.call_count, 1)
+            check(self.db, services={"worker": "active"})
+            self.assertEqual(notify.call_count, 2)

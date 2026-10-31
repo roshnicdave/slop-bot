@@ -37,14 +37,7 @@ def run(db, row):
                 "SELECT id,status FROM jobs WHERE slot=?", (slot,)
             ).fetchone()
             if existing:
-                send(
-                    user,
-                    "That request already has job "
-                    + existing["id"]
-                    + " ("
-                    + existing["status"]
-                    + "). No second generation was submitted.",
-                )
+                send(user, {"event": "existing_work", "job": dict(existing)})
             else:
                 try:
                     scene_key = json.loads(row["result"] or "{}").get("scene_key")
@@ -72,22 +65,20 @@ def run(db, row):
             if job:
                 video(user, job)
             else:
-                send(
-                    user,
-                    "No reviewed-format video is ready yet. I can make the first visual one when you ask.",
-                )
+                send(user, {"event": "preview_unavailable"})
         elif parts[0] == "/research":
             from .scout import daily
 
             result = daily(db)
             send(
                 user,
-                "Today’s editorial research:\n"
-                + "\n".join(i["key"] + ": " + i["hook_reason"] for i in result["ideas"])
-                + "\n\nNext experiment: "
-                + result.get("next_experiment", "")
-                + "\nSources reviewed: "
-                + str(len(result["evidence"]["records"])),
+                {
+                    "event": "research_completed",
+                    "day": result["day"],
+                    "ideas": result["ideas"],
+                    "limitations": result.get("limitations"),
+                    "scope": "Configured daily primary-source feeds",
+                },
             )
         from .incidents import resolve
 
@@ -105,7 +96,7 @@ def run(db, row):
         reason = str(exc)[:220] if isinstance(exc, ValueError) else type(exc).__name__
         record(db, "worker", parts[0], None, reason)
         send(
-            user, "Stopped: " + reason + ". Progress is saved; no new post was retried."
+            user, {"event": "work_failed", "error": reason, "receipts_preserved": True}
         )
 
     finally:

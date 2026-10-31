@@ -77,7 +77,7 @@ TOOLS = [
 
 def execute(db, update_id, user, name, args):
     from .telegram import update_config
-    from .control import execute as control
+    from . import control
 
     if user not in config()["telegram_allowed_user_ids"]:
         raise ValueError("Unauthorized operator")
@@ -103,20 +103,11 @@ def execute(db, update_id, user, name, args):
             "actual_state": snapshot(db),
         }
     if name == "set_publishing":
-        result = control("posting", args)
-        return {"result": result, "actual_state": snapshot(db)}
+        return control.set_publishing(args["enabled"])
     if name == "set_schedule":
-        slots = args["slots"]
-        result = control(
-            "schedule",
-            {
-                "slots": slots,
-                "posts_per_day": len(slots) if isinstance(slots, list) else None,
-            },
-        )
-        return {"result": result, "actual_state": snapshot(db)}
+        return control.set_schedule(args["slots"])
     if name == "lower_budget":
-        return control("set_budget", {"monthly_budget_usd": args["monthly_usd"]})
+        return control.lower_budget(args["monthly_usd"])
     if name == "save_preference":
         text = args["text"]
         if not isinstance(text, str) or not 0 < len(text) <= 700:
@@ -174,7 +165,6 @@ def execute(db, update_id, user, name, args):
             "request_id": ident,
             "task": task,
             "status": row[0],
-            "completion": "The worker records the outcome; accepted is not completed.",
             "research_scope": "Configured daily primary-source feeds only; no topic-specific or live-news search was submitted."
             if task == "research"
             else None,

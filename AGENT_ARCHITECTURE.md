@@ -17,7 +17,7 @@ flowchart LR
 
 ## Conversation
 
-Every message, including the budget menu entry, goes directly to the same Cloudflare Mistral agent. It receives live state, conversation memory and native function definitions. The model may read more evidence or call a capability, consume its result, then write a normal reply. There is no phrase classifier, separate action-selection inference, or reply-template layer. `chat.py` only stores conversation memory and preferences.
+Every message, including the budget menu entry, goes directly to the same Cloudflare Mistral agent. It receives a compact live summary, recent operator messages and native function definitions. Detailed activity, research, preferences and budget records are read on demand. The model may read more evidence or call a capability, consume its result, then write a normal reply. There is no phrase classifier, separate action-selection inference, or reply-template layer. `chat.py` only stores conversation memory and preferences.
 
 `agent.py` owns the bounded function-calling loop. `agent_tools.py` exposes operational reads, run/pause, publishing, schedule, budget reduction, saved preferences and work enqueueing. Schemas describe API inputs, not user command phrases. Backend functions enforce access, typed arguments, spending limits and publication invariants. Neither prompts nor model output can grant credentials or arbitrary shell access.
 
@@ -54,7 +54,7 @@ Phase-specific incidents have explicit open/resolved lifecycles; a successful cr
 health check resolves access incidents without silently enabling publication.
 
 The conversation context includes recent operator messages and current state. Prior AI
-operational claims are not treated as evidence. Native capability descriptions distinguish
+operational claims are not treated as evidence. Controls return structured state rather than prewritten replies. Missed slots are notified separately from live outages; changing error details alone does not repeat an outage alert. Native capability descriptions distinguish
 enabling the schedule from submitting an immediate publication request. Durable worker
 receipts distinguish acceptance from completion, and uncertain publication outcomes remain
 held against duplicate submission.
@@ -103,3 +103,9 @@ validated through the official API and the relevance selector; they are not a fi
 hardcoded watchlist. Missing media access stays missing. Vision prose is normalized in
 a separate bounded free inference step when necessary; completed inference results are
 reused rather than resubmitted. Original technical claims still require primary evidence.
+
+Default chat context excludes detailed activity, preferences, explanations and old
+outcomes. These remain available through explicit resource reads. Controls are typed
+state changes that return data; there is no second string-action router or canned
+status formatter. Provider failures use a typed exception rather than matching error
+wording. A generated reply is not marked delivered until Telegram accepts it.

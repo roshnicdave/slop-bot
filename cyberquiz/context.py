@@ -42,9 +42,7 @@ def read(db, resource):
         )
         for item in ready + published:
             plan = json.loads(item.pop("plan") or "{}")
-            item.update(
-                {key: plan.get(key) for key in ("question", "topic", "explanation")}
-            )
+            item.update({key: plan.get(key) for key in ("question", "topic")})
         return {
             "ready_count": db.execute(
                 "SELECT COUNT(*) FROM jobs WHERE approved=1 AND status IN ('rendered','container_created')"
@@ -142,14 +140,15 @@ def read(db, resource):
             "experiments",
             "SELECT id,state,parameter,hypothesis,outcome FROM experiments ORDER BY created DESC LIMIT 3",
         )
-    from .telegram import status_text
+    from .accounting import summary
 
-    return status_text(db, True)
+    return summary(db)
 
 
 def snapshot(db):
     cfg = config()
     queue = read(db, "queue")
+    queue = {k: queue[k] for k in ("ready_count", "ready", "published_total")}
     marker = ROOT / "data" / "meta-auth-health.json"
     auth = json.loads(marker.read_text()) if marker.exists() else {}
     blockers = []
@@ -187,10 +186,4 @@ def snapshot(db):
             "refill": "After consumption, on worker wakes; subject to budget, quality, novelty, daily attempt cap and failure backoff.",
         },
         "queue": queue,
-        "activity": {
-            "active": read(db, "activity")["active"],
-            "refill": read(db, "activity")["refill"],
-        },
-        "latest_preferences": read(db, "preferences")["saved"][:3],
-        "preference_storage_and_use": read(db, "preferences")["storage"],
     }

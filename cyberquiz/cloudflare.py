@@ -17,6 +17,11 @@ VOICE = "@cf/deepgram/aura-1"
 VISION = "@cf/meta/llama-3.2-11b-vision-instruct"
 ASR = "@cf/openai/whisper"
 EDITOR = "@cf/mistralai/mistral-small-3.1-24b-instruct"
+AGENT_OUTPUT_TOKENS = 180
+
+
+class CloudflareRequestError(RuntimeError):
+    """Transient provider failure; any reservation remains accounted."""
 
 
 class FreeQuotaDeferred(ValueError):
@@ -129,11 +134,11 @@ def request(db, operation, kind, model, body, neurons):
             timeout=(5, 30 if kind in ("chat", "control") else 90),
         )
     except requests.RequestException:
-        raise RuntimeError(
+        raise CloudflareRequestError(
             "Cloudflare request outcome unknown; reservation retained"
         ) from None
     if not r.ok:
-        raise RuntimeError(
+        raise CloudflareRequestError(
             "Cloudflare returned HTTP "
             + str(r.status_code)
             + "; no fallback or paid retry"
@@ -266,11 +271,11 @@ def voice(db, job, label, text, path):
 
 
 def agent_turn(db, operation, messages, tools):
-    body = {"messages": messages, "tools": tools, "max_tokens": 360, "temperature": 0.2}
+    body = {"messages": messages, "tools": tools, "max_tokens": AGENT_OUTPUT_TOKENS, "temperature": 0.2}
     size = len(json.dumps(body).encode())
     if size > 44000:
         raise ValueError("Agent context limit reached")
-    neurons = math.ceil((size * 31876 + 360 * 50488) / 1e6 * 1.25) + 10
+    neurons = math.ceil((size * 31876 + AGENT_OUTPUT_TOKENS * 50488) / 1e6 * 1.25) + 10
     response = request(db, operation, "control", EDITOR, body, neurons).json()
     if not response.get("success"):
         raise RuntimeError("Agent provider did not report success")

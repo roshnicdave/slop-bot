@@ -40,17 +40,19 @@ def process(ident):
             round((time.monotonic() - started) * 1000),
         )
         db.execute(
-            'UPDATE telegram_updates SET status="done",result=? WHERE id=?',
+            'UPDATE telegram_updates SET status="reply_ready",result=? WHERE id=?',
             (reply, ident),
         )
         db.commit()
         send(user, reply)
         mark_replied(db, ident)
+        db.execute("UPDATE telegram_updates SET status='done' WHERE id=?", (ident,))
+        db.commit()
         from .incidents import resolve
 
         resolve(db, "conversation", phase="reply", job=str(ident))
     except Exception as exc:
-        from .cloudflare import FreeQuotaDeferred
+        from .cloudflare import FreeQuotaDeferred, CloudflareRequestError
 
         if isinstance(exc, FreeQuotaDeferred):
             reset = (
@@ -66,7 +68,7 @@ def process(ident):
             ": " + str(exc)[:180] if isinstance(exc, (ValueError, RuntimeError)) else ""
         )
         # Retry inference only. Agent sessions resume after durable tool receipts.
-        if isinstance(exc, RuntimeError) and "Cloudflare" in str(exc) and attempt < 2:
+        if isinstance(exc, CloudflareRequestError) and attempt < 2:
             retry_at = (
                 dt.datetime.now(dt.timezone.utc)
                 + dt.timedelta(seconds=30 * (attempt + 1))
@@ -81,6 +83,12 @@ def process(ident):
             )
             db.commit()
             return
+        # Never replay tool calls after a failed reply; their receipts survive.
+        db.execute(
+            'UPDATE telegram_updates SET status="failed",result=? WHERE id=?',
+            (detail, ident),
+        )
+        db.commit()
         from .incidents import record
 
         record(db, "conversation", "reply", None, detail, job=str(ident))
@@ -98,12 +106,6 @@ def process(ident):
                 }
             ),
         )
-        # Never replay tool calls after a failed reply; their receipts survive.
-        db.execute(
-            'UPDATE telegram_updates SET status="failed",result=? WHERE id=?',
-            (type(exc).__name__, ident),
-        )
-        db.commit()
     finally:
         db.close()
 

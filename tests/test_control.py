@@ -1,6 +1,6 @@
 import unittest
 from unittest.mock import patch
-from cyberquiz.control import execute
+from cyberquiz.control import set_schedule, set_publishing, lower_budget
 
 CFG = {
     "timezone": "America/Los_Angeles",
@@ -17,16 +17,9 @@ class TelegramControlTests(unittest.TestCase):
         ):
             for times in [["09:00", "10:00"], ["23:00", "02:00"], ["99:00"]]:
                 with self.assertRaises(ValueError):
-                    execute("schedule", {"posts_per_day": len(times), "slots": times})
+                    set_schedule(times)
             update.assert_not_called()
-            execute(
-                "schedule",
-                {
-                    "posts_per_day": 2,
-                    "slots": ["09:00", "17:00"],
-                    "adaptive_posting_times": False,
-                },
-            )
+            set_schedule(["09:00", "17:00"])
             update.assert_called_once_with(
                 {
                     "posts_per_day": 2,
@@ -41,7 +34,8 @@ class TelegramControlTests(unittest.TestCase):
             patch("cyberquiz.control.secrets", return_value={}),
             patch("cyberquiz.control.update_config") as update,
         ):
-            self.assertIn("missing Meta token", execute("posting", {"enabled": True}))
+            with self.assertRaisesRegex(ValueError, "Missing Meta token"):
+                set_publishing(True)
             update.assert_not_called()
 
     def test_budget_cannot_increase_or_enable_paid_calls(self):
@@ -51,9 +45,9 @@ class TelegramControlTests(unittest.TestCase):
         ):
             for value in [2, -1, True, float("nan")]:
                 with self.assertRaises(ValueError):
-                    execute("set_budget", {"monthly_budget_usd": value})
+                    lower_budget(value)
             update.assert_not_called()
-            execute("set_budget", {"monthly_budget_usd": 0.5})
+            lower_budget(0.5)
             update.assert_called_once_with(
                 {"monthly_budget_usd": 0.5, "per_job_budget_usd": 0.03}
             )

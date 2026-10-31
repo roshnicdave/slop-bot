@@ -69,3 +69,28 @@ if __name__ == "__main__":
     from .store import connect
 
     print(json.dumps(report(connect()), indent=2))
+
+
+def summary(db):
+    """Small live budget resource, without per-request provider logs."""
+    from .store import config
+
+    cfg = config()
+    cutoff = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=31)).isoformat()
+    reserved = db.execute(
+        "SELECT COALESCE(SUM(reserved),0) FROM charges WHERE created>=?", (cutoff,)
+    ).fetchone()[0]
+    neurons = 0
+    if db.execute("SELECT 1 FROM sqlite_master WHERE name='cf_calls'").fetchone():
+        neurons = db.execute(
+            "SELECT COALESCE(SUM(COALESCE(accounted_neurons,neurons)),0) FROM cf_calls WHERE day=?",
+            (now()[:10],),
+        ).fetchone()[0]
+    return {
+        "paid_reserved_31_days_usd": reserved / 1e6,
+        "paid_monthly_cap_usd": cfg["monthly_budget_usd"],
+        "free_neurons_budgeted_today": neurons,
+        "free_daily_limit": cfg.get("cf_daily_neuron_limit", 10000),
+        "quota_timezone": "UTC",
+        "invoice_reconciled": False,
+    }

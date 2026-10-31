@@ -71,24 +71,37 @@ def check(db, *, services=None):
         "CREATE TABLE IF NOT EXISTS health_state(id INTEGER PRIMARY KEY,issues TEXT,changed TEXT)"
     )
     cfg = config()
-    current = findings(db, cfg, services=services)
+    current = list(findings(db, cfg, services=services))
     old = db.execute("SELECT issues,changed FROM health_state WHERE id=1").fetchone()
-    # Deduplicate across retries, while preserving precise facts for AI wording.
+    previous = json.loads(old["issues"]) if old else []
+    if services is None:
+        current.extend(i for i in previous if i["kind"] == "service_down")
     encoded = json.dumps(current, sort_keys=True)
     if old and old["issues"] == encoded:
         return current
     stamp = now()
     db.execute("INSERT OR REPLACE INTO health_state VALUES(1,?,?)", (encoded, stamp))
     db.commit()
-    if current or (old and json.loads(old["issues"])):
+    missed = [i for i in current if i["kind"] == "missed_post"]
+    old_missed = {i["slot"] for i in previous if i["kind"] == "missed_post"}
+    for issue in missed:
+        if issue["slot"] not in old_missed:
+            notify(
+                db,
+                "missed-post:" + issue["slot"],
+                json.dumps({"event": "scheduled_post_missed", "slot": issue["slot"]}),
+            )
+    blockers = [i for i in current if i["kind"] != "missed_post"]
+    old_blockers = [i for i in previous if i["kind"] != "missed_post"]
+    # Detail changes are stored, but one continuing outage does not need another message.
+    if bool(blockers) != bool(old_blockers):
         notify(
             db,
             "health:" + stamp,
             json.dumps(
                 {
-                    "event": "pipeline_blocked" if current else "pipeline_recovered",
-                    "issues": current,
-                    "instruction": "Tell the owner briefly what failed and its effect. Distinguish recovery from a confirmed post. Do not ask them to discover the error.",
+                    "event": "pipeline_blocked" if blockers else "pipeline_recovered",
+                    "issues": blockers,
                 }
             ),
         )

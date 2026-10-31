@@ -55,7 +55,7 @@ def video(chat, job):
     import re
 
     if not re.fullmatch("[a-f0-9]{12}", job):
-        return send(chat, "No video found.")
+        raise ValueError("Invalid preview job identifier")
     path = ROOT / "out" / job / "reel.mp4"
     db = connect()
     tables(db)
@@ -216,79 +216,6 @@ def update_config(values):
     from .wakeup import signal
 
     signal()
-
-
-HELP = "Ask me about the system, suggest a topic, or tell me to pause. /budget shows spending."
-
-
-def status_text(db, budget_only=False):
-    from .__main__ import report
-
-    r = report(db)
-    c = config()
-    from .accounting import report as accounting
-
-    usage = accounting(db)
-    free = usage.get("neurons_budgeted_today", usage["neurons_reserved_today"])
-    if budget_only:
-        return (
-            f"Paid AI: ${r['reserved_31_days_usd']:.4f} reserved / ${c['monthly_budget_usd']:.2f} monthly cap\n"
-            f"Free AI today: {free:,}/{c.get('cf_daily_neuron_limit', 10000):,} quota used/reserved (UTC)"
-        )
-    generation = (
-        "paused"
-        if c.get("emergency_pause") or not c.get("generation_enabled")
-        else "scheduled"
-    )
-    connected = bool(secrets().get("IG_ACCESS_TOKEN"))
-    publication = (
-        "enabled"
-        if c["publishing_enabled"]
-        else ("paused" if connected else "blocked: Meta authorization missing")
-    )
-    auth_path = ROOT / "data" / "meta-auth-health.json"
-    auth = json.loads(auth_path.read_text()) if auth_path.exists() else {}
-    if auth.get("valid") is False and auth.get("reason"):
-        publication = "blocked: " + auth["reason"]
-    latest = db.execute(
-        "SELECT id,status FROM jobs ORDER BY created DESC LIMIT 1"
-    ).fetchone()
-    ready = db.execute(
-        "SELECT COUNT(*) FROM jobs WHERE approved=1 AND status IN ('rendered','container_created')"
-    ).fetchone()[0]
-    uncertain = db.execute(
-        "SELECT COUNT(*) FROM jobs WHERE status IN ('publish_unknown','container_submitting')"
-    ).fetchone()[0]
-    active = db.execute(
-        "SELECT command,status FROM telegram_updates WHERE status IN ('queued','running') ORDER BY id LIMIT 1"
-    ).fetchone()
-    result = f"Generation: {generation}. Posting: {publication}."
-    result += (
-        f"\nReady to post: {ready}. Schedule: "
-        + ", ".join(c["slots"][: c["posts_per_day"]])
-        + " ("
-        + c["timezone"]
-        + ")."
-    )
-    if uncertain:
-        result += "\nPosting blocked: an earlier publication needs reconciliation."
-    if active:
-        labels = {
-            "/publish-next": "Post next Reel",
-            "/next": "Make preview",
-            "/research": "Research",
-            "/preview": "Send preview",
-        }
-        result += (
-            "\nCurrent request: "
-            + labels.get(active["command"].split()[0], "Background task")
-            + " ("
-            + active["status"]
-            + ")."
-        )
-    elif latest:
-        result += f"\nLatest video: {latest['id']} ({latest['status']})."
-    return result
 
 
 def handle(db, update):

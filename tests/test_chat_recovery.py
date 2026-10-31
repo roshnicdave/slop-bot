@@ -5,6 +5,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from cyberquiz.store import connect, now
+from cyberquiz.cloudflare import CloudflareRequestError
 from cyberquiz.telegram import tables
 
 
@@ -32,7 +33,9 @@ class ChatRecoveryTests(unittest.TestCase):
                 ),
                 patch(
                     "cyberquiz.agent.run",
-                    side_effect=RuntimeError("Cloudflare request outcome unknown"),
+                    side_effect=CloudflareRequestError(
+                        "Cloudflare request outcome unknown"
+                    ),
                 ),
                 patch("cyberquiz.conversation.send") as send,
             ):

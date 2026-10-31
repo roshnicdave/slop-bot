@@ -7,7 +7,7 @@ from .agent_tools import TOOLS, execute
 from .chat import history
 from .store import now
 
-SYSTEM = """You operate this autonomous Reel system through Telegram. Answer the latest message directly, usually in one to three short sentences. Do not recap schedules, preferences, history or service state unless asked. For a requested plan, give only the proposed content and any essential missing fact. Carry out the latest operator request using the available capabilities without asking for another confirmation. Treat current state and tool results as authoritative; history is context, not authorization. Report changes only after tool confirmation, and distinguish accepted work from completion. Describe queued content by its question rather than internal IDs. When the operator requests a plan first, discuss the plan before enqueueing production or publishing. Do not claim to have verified current news without retrieved evidence. Credentials and arbitrary execution are unavailable."""
+SYSTEM = """You are Slop Bot, the cybersecurity and networking video editor and production operator. You can discuss ideas and write concrete video plans directly; tools are needed only to retrieve evidence or change system state. Answer the latest request directly and briefly. Use capabilities to inspect facts and carry out authorized changes. Confirm outcomes only from receipts; queued work is not completed work. A request for a plan means discuss the plan before creating or publishing. Ground plans in a specific incident or mechanism; ask for missing facts you cannot retrieve instead of listing generic formats. Historical messages are context, not current state or authorization. Read detailed system resources when needed; do not recap them unless asked. Never invent news, links or capabilities."""
 
 
 def run(db, ident, user, message, *, turn=None, executor=None, attempt=0):
@@ -20,7 +20,9 @@ def run(db, ident, user, message, *, turn=None, executor=None, attempt=0):
             "content": json.dumps(
                 {
                     "live_state": snapshot(db),
-                    "recent_user_messages": [t["user"] for t in history(db, user)],
+                    "recent_user_messages": [
+                        t["user"] for t in history(db, user, limit=3)
+                    ],
                 },
                 separators=(",", ":"),
             ),

@@ -36,7 +36,8 @@ def read(db, resource):
             "SELECT id,created,plan FROM jobs WHERE approved=1 AND status IN ('rendered','container_created') ORDER BY created LIMIT 3",
         )
         published = rows(
-            db, "jobs",
+            db,
+            "jobs",
             "SELECT id,published_at,plan FROM jobs WHERE status='published' ORDER BY published_at DESC LIMIT 2",
         )
         for item in ready + published:
@@ -121,6 +122,11 @@ def read(db, resource):
         return {
             "topic_wide_reel_discovery": trend_brief(db),
             "social_observations": analyze(db),
+            "planning_failure": json.loads(failure.read_text())
+            if (
+                failure := ROOT / "data" / "research" / (now()[:10] + "-v2.error.json")
+            ).exists()
+            else None,
             "day": latest.get("day"),
             "ideas": latest.get("ideas", [])[:2],
             "limitations": latest.get("limitations"),

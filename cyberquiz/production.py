@@ -120,10 +120,13 @@ def _make(db, slot=None, scene_key=None, attempt=0):
         from .incidents import record
 
         phase = db.execute("SELECT status FROM jobs WHERE id=?", (ident,)).fetchone()[0]
-        record(db, "production", phase, None, type(exc).__name__, ident)
+        detail = type(exc).__name__ + (
+            ": " + str(exc)[:240] if isinstance(exc, (ValueError, RuntimeError)) else ""
+        )
+        record(db, "production", phase, None, detail, ident)
         db.execute(
             'UPDATE jobs SET status="failed",error=? WHERE id=?',
-            (type(exc).__name__, ident),
+            (detail, ident),
         )
         db.commit()
         raise

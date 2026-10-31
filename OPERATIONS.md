@@ -47,3 +47,13 @@ limits and cannot publish or send Telegram messages. Disable it with the timer o
 research suggestions extend the topic frontier automatically. Use the research capability
 to inspect dated findings and availability limitations. Discovery API outages must not
 block the ready publication queue.
+
+## Editorial recovery
+
+Daily planning receives a bounded structured projection of research, with full evidence
+retained separately. Confirmed completed planning results are reused after local parsing
+fixes; pending or uncertain provider operations are never replayed. Local preflight
+failures back off for 30 minutes and do not consume the generation allowance.
+Only attempts that create production jobs count toward that allowance. A held quality
+result is not a ready Reel. Detailed bounded errors are retained in incidents and the
+readiness ledger for the Telegram agent to inspect.

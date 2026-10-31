@@ -77,6 +77,27 @@
         "Score-based participation may be worth testing later; it is not evidence that five questions outperform a single puzzle."
       ],
       "limitations": "Views, reach, retention, audio quality and causal effects unavailable; comments are a visible sample."
+    },
+    {
+      "url": "https://www.instagram.com/reel/DfCtVwVsLCh/",
+      "type": "animation format reference; not enabled in production",
+      "creator": "khalid_networks",
+      "inspected_at": "2026-10-30",
+      "observations": [
+        "Telnet versus SSH comparison on a fixed router/switch/PC topology, with realistic equipment icons and sparse labels.",
+        "Sampled frames show HELLO/plaintext capsules at different positions along network links; SSH side shows a lock and scrambled payload.",
+        "Caption explains plaintext versus encryption and ends with a multiple-choice question."
+      ],
+      "design_hypotheses": [
+        "Keep a stable topology and animate packet movement and payload visibility, synchronized with narration.",
+        "Use an explanation format for an explicit side-by-side comparison; keep quiz answers hidden until the reveal in quiz variants.",
+        "Reuse original vector equipment artwork and scripted animation; generative video is unnecessary for this topology treatment."
+      ],
+      "limitations": [
+        "Two visual samples and visible caption inspected; full timing and audio not evaluated.",
+        "No verified reach or retention observed; saved as a format reference, not proof of virality.",
+        "Do not imply SSH hides destination addresses or encrypts traffic outside its own session."
+      ]
     }
   ]
 }

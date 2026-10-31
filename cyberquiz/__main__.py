@@ -15,7 +15,28 @@ def make(db, recent=False, slot=None):
     return visual_make(db, slot=slot)
 
 
+def continue_publication(db, cfg):
+    """Complete known containers across window boundaries without fresh submissions."""
+    if not cfg["publishing_enabled"] or cfg.get("emergency_pause"):
+        return
+    from .instagram import publish
+
+    for pending in db.execute(
+        "SELECT id FROM jobs WHERE approved=1 AND status='container_created'"
+    ).fetchall():
+        publish(db, pending["id"])
+
+
 def tick(db):
+    try:
+        return _tick(db)
+    finally:
+        from .health import check
+
+        check(db)
+
+
+def _tick(db):
     with worker_lock(blocking=False) as locked:
         if not locked:
             return
@@ -85,6 +106,7 @@ def tick(db):
             < 3600
             for clock in cfg["slots"][: cfg["posts_per_day"]]
         )
+        continue_publication(db, cfg)
         published = [
             dt.datetime.fromisoformat(r[0])
             for r in db.execute(

@@ -1,0 +1,8 @@
+[Unit]
+Description=Check Slop Bot health every thirty minutes
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=30min
+Unit=cyberquiz-health.service
+[Install]
+WantedBy=timers.target

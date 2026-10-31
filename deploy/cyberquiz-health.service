@@ -1,0 +1,16 @@
+[Unit]
+Description=Independent Slop Bot health checks and owner alerts
+After=network-online.target
+[Service]
+Type=oneshot
+User=ec2-user
+WorkingDirectory=/home/ec2-user/cyber-quiz
+ExecStart=/home/ec2-user/cyber-quiz/.venv/bin/python -m cyberquiz.health
+TimeoutStartSec=90
+MemoryMax=80M
+CPUQuota=25%
+Nice=19
+UMask=0077
+NoNewPrivileges=true
+ProtectSystem=full
+PrivateTmp=true

@@ -108,6 +108,11 @@ def run(db, row):
             user, "Stopped: " + reason + ". Progress is saved; no new post was retried."
         )
 
+    finally:
+        from .health import check
+
+        check(db)
+
 
 def main():
     import os
@@ -164,7 +169,9 @@ def main():
                     except Exception as exc:
                         from .incidents import record
 
-                        incident = record(db, "worker", "maintenance", None, type(exc).__name__)
+                        incident = record(
+                            db, "worker", "maintenance", None, type(exc).__name__
+                        )
                         try:
                             notify(
                                 db,
@@ -172,9 +179,14 @@ def main():
                                 + dt.datetime.now(dt.timezone.utc).date().isoformat()
                                 + ":"
                                 + type(exc).__name__,
-                                json.dumps({"event": "maintenance_failed", "incident": incident,
-                                            "failure_type": type(exc).__name__,
-                                            "publication_attempted": "consult job phase and receipts"}),
+                                json.dumps(
+                                    {
+                                        "event": "maintenance_failed",
+                                        "incident": incident,
+                                        "failure_type": type(exc).__name__,
+                                        "publication_attempted": "consult job phase and receipts",
+                                    }
+                                ),
                             )
                         except Exception:
                             pass

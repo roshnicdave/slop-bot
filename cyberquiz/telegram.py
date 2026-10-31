@@ -110,17 +110,21 @@ def notify(db, event, message):
     db.execute(
         "CREATE TABLE IF NOT EXISTS notice_texts(event TEXT PRIMARY KEY,facts TEXT,text TEXT,attempts INTEGER DEFAULT 0)"
     )
+    if "next_attempt" not in {
+        r[1] for r in db.execute("PRAGMA table_info(notice_texts)")
+    }:
+        db.execute("ALTER TABLE notice_texts ADD COLUMN next_attempt TEXT")
     db.execute(
         "INSERT OR IGNORE INTO notice_texts(event,facts) VALUES(?,?)", (event, message)
     )
     db.commit()
     cached = db.execute(
-        "SELECT text,attempts FROM notice_texts WHERE event=?", (event,)
+        "SELECT text,attempts,next_attempt FROM notice_texts WHERE event=?", (event,)
     ).fetchone()
     if cached[0]:
         message = cached[0]
     else:
-        if cached[1] >= 3:
+        if cached[2] and cached[2] > now():
             return
         db.execute(
             "UPDATE notice_texts SET attempts=attempts+1 WHERE event=?", (event,)
@@ -139,7 +143,20 @@ def notify(db, event, message):
                 message,
             )
         except Exception:
-            return  # Facts remain pending; no fabricated fallback response.
+            import datetime as dt
+
+            clock = dt.datetime.now(dt.timezone.utc)
+            retry = clock + dt.timedelta(minutes=30)
+            if (cached[1] + 1) % 3 == 0:
+                retry = (clock + dt.timedelta(days=1)).replace(
+                    hour=0, minute=5, second=0, microsecond=0
+                )
+            db.execute(
+                "UPDATE notice_texts SET next_attempt=? WHERE event=?",
+                (retry.isoformat(), event),
+            )
+            db.commit()
+            return  # Durable facts remain pending when AI or its quota is unavailable.
         db.execute("UPDATE notice_texts SET text=? WHERE event=?", (message, event))
         db.commit()
     owner = config().get("telegram_owner_user_id")
@@ -173,8 +190,14 @@ def retry_notifications(db):
         "SELECT 1 FROM sqlite_master WHERE name='notice_texts'"
     ).fetchone():
         return
+    if "next_attempt" not in {
+        r[1] for r in db.execute("PRAGMA table_info(notice_texts)")
+    }:
+        db.execute("ALTER TABLE notice_texts ADD COLUMN next_attempt TEXT")
+        db.commit()
     for row in db.execute(
-        "SELECT event,facts FROM notice_texts WHERE text IS NULL AND attempts<3 LIMIT 2"
+        "SELECT event,facts FROM notice_texts WHERE text IS NULL AND (next_attempt IS NULL OR next_attempt<=?) LIMIT 2",
+        (now(),),
     ).fetchall():
         notify(db, row[0], row[1])
 

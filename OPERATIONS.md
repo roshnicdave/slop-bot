@@ -57,3 +57,16 @@ failures back off for 30 minutes and do not consume the generation allowance.
 Only attempts that create production jobs count toward that allowance. A held quality
 result is not a ready Reel. Detailed bounded errors are retained in incidents and the
 readiness ledger for the Telegram agent to inspect.
+
+## Owner health alerts
+
+Enable cyberquiz-health.timer alongside the worker. It checks local queue, missed
+posting windows, open incidents and service state every 30 minutes, independently
+of the worker. Pipeline turns also check health on completion or failure. Only state
+changes create AI-written owner notifications; publication notices retain their
+existing audience. Failed AI notice composition remains pending with bounded retries,
+including after daily quota reset. Telegram transport uncertainty is retained rather
+than blindly resent. No monitor can deliver through a Telegram outage.
+
+A known, approved Meta container continues processing beyond its original posting
+window. Its existing identity is reused; unknown submissions remain blocked.

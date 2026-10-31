@@ -17,6 +17,7 @@ VOICE = "@cf/deepgram/aura-1"
 VISION = "@cf/meta/llama-3.2-11b-vision-instruct"
 ASR = "@cf/openai/whisper"
 EDITOR = "@cf/mistralai/mistral-small-3.1-24b-instruct"
+REVIEW = "@cf/qwen/qwen3-30b-a3b-fp8"
 AGENT_OUTPUT_TOKENS = 180
 
 
@@ -110,7 +111,7 @@ def reserve(db, operation, kind, neurons):
 
 def request(db, operation, kind, model, body, neurons):
     # No Gateway credits, paid models, model switching, or external paid fallback.
-    if model not in (LLM, EDITOR, VOICE, VISION, ASR):
+    if model not in (LLM, EDITOR, REVIEW, VOICE, VISION, ASR):
         raise ValueError("Model is outside the free-only allowlist")
     reserve(db, operation, kind, neurons)
     k = secrets()
@@ -177,15 +178,22 @@ def request(db, operation, kind, model, body, neurons):
     return r
 
 
-def llm(db, operation, messages, kind="research", max_tokens=1000):
+def llm(db, operation, messages, kind="research", max_tokens=1000, *, model=None):
     if max_tokens > 1400:
         raise ValueError("Output exceeds bounded profile")
     size = len(json.dumps(messages, ensure_ascii=False).encode()) + 512
     if size > 18000:
         raise ValueError("Research context exceeds bounded profile")
     # At published 4,119 neurons/M input, 34,868/M output. Add 25% headroom.
-    model = EDITOR if kind in ("editorial", "chat", "control") else LLM
-    input_rate, output_rate = (31876, 50488) if model == EDITOR else (4119, 34868)
+    model = model or (EDITOR if kind in ("editorial", "chat", "control") else LLM)
+    input_rate, output_rate = {
+        EDITOR: (31876, 50488),
+        LLM: (4119, 34868),
+        REVIEW: (4625, 30475),
+    }[model]
+    if model == REVIEW:
+        messages = [dict(m) for m in messages]
+        messages[-1]["content"] += "\n/no_think"
     neurons = (
         math.ceil((size * input_rate + max_tokens * output_rate) / 1e6 * 1.25) + 10
     )
@@ -200,10 +208,16 @@ def llm(db, operation, messages, kind="research", max_tokens=1000):
     data = r.json()
     if not data.get("success"):
         raise RuntimeError("Cloudflare inference did not report success")
-    value = data["result"].get("response", "")
+    value = data["result"].get("response")
+    if value is None:
+        value = (
+            (data["result"].get("choices") or [{}])[0]
+            .get("message", {})
+            .get("content", "")
+        )
     if isinstance(value, dict):
         return value
-    text = value.strip()
+    text = re.sub(r"^<think>.*?</think>\s*", "", value.strip(), flags=re.S)
     if text.startswith("```"):
         text = re.sub(r"^```(?:json)?\s*|\s*```$", "", text)
     return json.loads(text)
@@ -271,7 +285,12 @@ def voice(db, job, label, text, path):
 
 
 def agent_turn(db, operation, messages, tools):
-    body = {"messages": messages, "tools": tools, "max_tokens": AGENT_OUTPUT_TOKENS, "temperature": 0.2}
+    body = {
+        "messages": messages,
+        "tools": tools,
+        "max_tokens": AGENT_OUTPUT_TOKENS,
+        "temperature": 0.2,
+    }
     size = len(json.dumps(body).encode())
     if size > 44000:
         raise ValueError("Agent context limit reached")

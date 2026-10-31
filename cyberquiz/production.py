@@ -68,17 +68,8 @@ def _make(db, slot=None, scene_key=None, attempt=0):
         if not quality["passed"]:
             db.execute('UPDATE jobs SET status="held_quality" WHERE id=?', (ident,))
             db.commit()
-            from .telegram import notify
-
             if attempt < 1:
                 return make(db, slot=(slot + ":fallback") if slot else None, attempt=1)
-            notify(
-                db,
-                "quality:" + ident,
-                "Skipped "
-                + ident
-                + ": both candidate drafts failed quality checks. I’ll try another concept next run.",
-            )
             return ident
         if cfg.get("voice_provider") == "elevenlabs":
             from .premium_voice import preflight
@@ -216,9 +207,14 @@ def recover(db):
             notify(
                 db,
                 "provider-hold:" + ident,
-                "Held "
-                + ident
-                + ": a voice request has an unknown result. No duplicate request was sent.",
+                json.dumps(
+                    {
+                        "event": "voice_outcome_unknown",
+                        "content_type": "Instagram Reel",
+                        "question": json.loads(row["plan"] or "{}").get("question"),
+                        "request_retried": False,
+                    }
+                ),
             )
         else:
             resume(db, ident)

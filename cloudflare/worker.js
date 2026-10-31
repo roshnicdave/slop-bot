@@ -1,4 +1,5 @@
 const CHAT = '@cf/meta/llama-3.1-8b-instruct-fp8-fast';
+const REVIEW = '@cf/qwen/qwen3-30b-a3b-fp8';
 const EDITOR = '@cf/mistralai/mistral-small-3.1-24b-instruct';
 const VISION = '@cf/meta/llama-3.2-11b-vision-instruct';
 const ASR = '@cf/openai/whisper';
@@ -15,7 +16,7 @@ export default {
     let data;
     try {data=JSON.parse(raw);} catch {return new Response('Bad JSON',{status:400});}
     const {model,input}=data;
-    if (![CHAT,EDITOR,VOICE,VISION,ASR].includes(model) || !input) return new Response('Model denied',{status:400});
+    if (![CHAT,EDITOR,REVIEW,VOICE,VISION,ASR].includes(model) || !input) return new Response('Model denied',{status:400});
     if (model === VISION || model === ASR) {
       const bytes = model === VISION ? input.image : input.audio;
       const agreement = model === VISION && input.prompt === 'agree';
@@ -34,7 +35,7 @@ export default {
       } catch(error) {return Response.json({success:false,error:String(error.message).slice(0,400)},{status:502});}
     }
     if (raw.length > 48000) return new Response('Too large',{status:413});
-    if (model === CHAT || model === EDITOR) {
+    if (model === CHAT || model === EDITOR || model === REVIEW) {
       if (!Array.isArray(input.messages) || input.messages.length>24 ||
           !Number.isInteger(input.max_tokens) || input.max_tokens<1 || input.max_tokens>1400)
         return new Response('Profile denied',{status:400});

@@ -251,14 +251,24 @@ def _daily(db, force=False):
 def choose(db, research):
     from . import novelty, discovery
 
+    cutoff = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=24)).isoformat()
+    rejected = {
+        json.loads(r[0]).get("key")
+        for r in db.execute(
+            "SELECT plan FROM jobs WHERE status='held_quality' AND plan IS NOT NULL AND created>=?",
+            (cutoff,),
+        )
+    }
     if config().get("source_discovery_enabled", True):
-        fresh = discovery.candidate(db, research)
+        fresh = discovery.candidate(db, research, excluded=rejected)
         if fresh:
             return scenarios.validate(fresh)
     bank = scenarios.bank()
     bykey = {p["key"]: p for p in bank}
     preferred = [bykey[i["key"]] for i in research["ideas"] if i["key"] in bykey]
     for scene in preferred + bank:
+        if scene["key"] in rejected:
+            continue
         try:
             novelty.check(db, scene)
         except ValueError:

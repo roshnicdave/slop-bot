@@ -83,3 +83,9 @@ transient Cloudflare retries are allowed before recording a reply incident and q
 an owner alert. Inference has a 30-second response timeout. Unknown reservations stay
 charged against the free allowance. Notification narration uses only its event facts;
 URLs absent from those facts are rejected instead of sent.
+
+Publication notices carry the confirmed Reel URL and its question as structured facts.
+The generated notice must preserve that URL. A failed permalink lookup does not turn
+an account profile URL into a supposed post link. Quality holds do not send a second
+low-level notice on top of the readiness health alert. A newer review version permits
+retrying the old review's backoff, while retaining all daily and monetary limits.

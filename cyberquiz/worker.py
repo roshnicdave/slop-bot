@@ -55,6 +55,22 @@ def run(db, row):
                     )
                     db.commit()
                     video(config().get("telegram_owner_user_id", user), job)
+                else:
+                    saved = db.execute(
+                        "SELECT plan,status FROM jobs WHERE id=?", (job,)
+                    ).fetchone()
+                    detail = json.loads(saved["plan"] or "{}")
+                    send(
+                        user,
+                        {
+                            "event": "preview_not_ready",
+                            "question": detail.get("question"),
+                            "status": saved["status"],
+                            "reasons": detail.get("quality", {})
+                            .get("editorial", {})
+                            .get("issues", []),
+                        },
+                    )
         elif parts[0] == "/preview":
             job = parts[1].strip() if len(parts) > 1 else ""
             if not job:

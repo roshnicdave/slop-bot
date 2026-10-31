@@ -187,13 +187,20 @@ def _publish(db, job, *, immediate=False):
                 "permalink", ""
             )
         except Exception:
-            permalink = "https://www.instagram.com/" + cfg["account"] + "/"
+            permalink = None
         from .telegram import notify
 
         notify(
             db,
             "published:" + job,
-            "Posted: " + permalink,
+            json.dumps(
+                {
+                    "event": "reel_published",
+                    "content_type": "Instagram Reel",
+                    "question": p["question"],
+                    "confirmed_post_url": permalink,
+                }
+            ),
         )
     except Exception:
         # Publishing success stays recorded even if notification transport fails.

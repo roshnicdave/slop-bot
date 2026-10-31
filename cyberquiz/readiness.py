@@ -1,6 +1,7 @@
 """Keep one quality-checked Reel staged; refill without minute polling."""
 
 import datetime as dt
+import json
 from zoneinfo import ZoneInfo
 from .store import config, now, worker_lock
 
@@ -34,11 +35,24 @@ def ensure(db, recover_preflight=False):
         last = db.execute(
             "SELECT created,status,job FROM readiness_attempts ORDER BY id DESC LIMIT 1"
         ).fetchone()
+        from .quality import REVIEW_VERSION
+
+        prior = (
+            db.execute("SELECT plan FROM jobs WHERE id=?", (last[2],)).fetchone()
+            if last and last[2] and last[1] == "held_quality"
+            else None
+        )
+        review_upgraded = bool(
+            prior
+            and json.loads(prior[0] or "{}").get("quality", {}).get("review_version", 0)
+            < REVIEW_VERSION
+        )
         clock = dt.datetime.now(dt.timezone.utc)
         if (
             last
             and last[1] != "complete"
             and not (recover_preflight and last[2] is None)
+            and not review_upgraded
             and (clock - dt.datetime.fromisoformat(last[0])).total_seconds() < 1800
         ):
             return "backoff"
@@ -67,12 +81,25 @@ def ensure(db, recover_preflight=False):
         try:
             job = make(db, slot="buffer:" + str(ident))
             row = db.execute(
-                "SELECT status,approved FROM jobs WHERE id=?", (job,)
+                "SELECT status,approved,plan FROM jobs WHERE id=?", (job,)
             ).fetchone()
             complete = row and row["status"] == "rendered" and row["approved"]
+            issues = (
+                json.loads(row["plan"] or "{}")
+                .get("quality", {})
+                .get("editorial", {})
+                .get("issues", [])
+                if row
+                else []
+            )
             db.execute(
-                "UPDATE readiness_attempts SET status=?,job=? WHERE id=?",
-                ("complete" if complete else "held_quality", job, ident),
+                "UPDATE readiness_attempts SET status=?,job=?,error=? WHERE id=?",
+                (
+                    "complete" if complete else "held_quality",
+                    job,
+                    json.dumps(issues)[:500] if issues else None,
+                    ident,
+                ),
             )
             db.commit()
             if complete:

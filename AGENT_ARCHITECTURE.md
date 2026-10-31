@@ -109,3 +109,12 @@ outcomes. These remain available through explicit resource reads. Controls are t
 state changes that return data; there is no second string-action router or canned
 status formatter. Provider failures use a typed exception rather than matching error
 wording. A generated reply is not marked delivered until Telegram accepts it.
+
+Quality review solves the opening question without seeing its answer key or reveal.
+The selected option is compared against the verified answer. Exact answer leakage is
+checked locally before inference. Cloudflare Qwen3 handles this bounded solve using
+its own documented neuron rates under the existing shared free allowance; it is not
+a paid fallback. Reveals and caption explanations retain verified scene wording.
+Rejected candidates are excluded from selection for 24 hours so a fallback cannot
+repeat the same failed draft. Readiness retains rejection reasons; its health notice
+is the single automatic refill-failure alert.

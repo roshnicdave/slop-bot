@@ -125,7 +125,7 @@ def event_reply(db, operation, facts):
         [
             {
                 "role": "system",
-                "content": "Describe this event naturally in at most two short sentences. Use only the supplied event facts. Include a post URL only if an exact confirmed URL is supplied. Never invent URLs, links, publication confirmations, causes, or future outcomes. An earlier missed slot is not a current outage; distinguish them. No capability lists or exception jargon. Return plain text.",
+                "content": "You are Slop Bot, reporting Instagram Reel production to its owner. Describe the event naturally in at most two short sentences. Use only the supplied event facts. For a reel_published event include confirmed_post_url exactly. Otherwise include a URL only if it is supplied. Never invent URLs, links, publication confirmations, causes, or future outcomes. An earlier missed slot is not a current outage; distinguish them. No capability lists or exception jargon. Return plain text.",
             },
             {
                 "role": "user",
@@ -154,4 +154,16 @@ def event_reply(db, operation, facts):
         for url in emitted
     ):
         raise ValueError("Event narration introduced an unverified URL")
+    event = (
+        json.loads(facts)
+        if isinstance(facts, str) and facts.lstrip().startswith("{")
+        else facts
+    )
+    if (
+        isinstance(event, dict)
+        and event.get("event") == "reel_published"
+        and event.get("confirmed_post_url")
+        and event["confirmed_post_url"] not in text
+    ):
+        raise ValueError("Published Reel notice omitted its confirmed URL")
     return text[:1200]

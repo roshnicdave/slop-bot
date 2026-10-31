@@ -88,3 +88,20 @@ class ChatRecoveryTests(unittest.TestCase):
             return_value={"content": "Posted: " + url},
         ):
             self.assertIn(url, event_reply(None, "event", {"permalink": url}))
+
+    def test_publication_notice_must_include_confirmed_reel_url(self):
+        from cyberquiz.agent import event_reply
+
+        with patch(
+            "cyberquiz.agent.cloudflare.agent_turn",
+            return_value={"content": "The event was posted on Instagram."},
+        ):
+            with self.assertRaisesRegex(ValueError, "omitted"):
+                event_reply(
+                    None,
+                    "event",
+                    {
+                        "event": "reel_published",
+                        "confirmed_post_url": "https://www.instagram.com/reel/confirmed/",
+                    },
+                )

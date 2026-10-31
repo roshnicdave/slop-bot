@@ -148,7 +148,7 @@ def validate(p):
     return p
 
 
-def candidate(db, research):
+def candidate(db, research, *, excluded=()):
     folder = ROOT / "data" / "discovery"
     folder.mkdir(exist_ok=True)
     history = [
@@ -200,6 +200,8 @@ def candidate(db, research):
                 (research["day"] + "-v3-" + article["url"]).encode()
             ).hexdigest()[:20]
         )
+        if ident in excluded:
+            continue
         path = folder / (ident + ".json")
         failed = folder / (ident + ".held.json")
         if failed.exists():

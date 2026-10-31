@@ -56,7 +56,7 @@ TOOLS = [
     ),
     tool(
         "enqueue_work",
-        "Submit work for execution, rather than only changing settings. publish_next publishes the next ready Reel immediately; create_preview generates a preview; show_preview delivers it; research refreshes research; ensure_ready replenishes the queue. Publication must be enabled first. Completion is asynchronous.",
+        "Submit work for execution, rather than only changing settings. publish_next publishes the next ready Reel immediately; create_preview generates a preview; show_preview delivers it; research refreshes the configured daily primary-source feeds, not arbitrary topic or live-news searches; ensure_ready replenishes the queue. Publication must be enabled first. Completion is asynchronous.",
         {
             "task": {
                 "type": "string",
@@ -175,5 +175,8 @@ def execute(db, update_id, user, name, args):
             "task": task,
             "status": row[0],
             "completion": "The worker records the outcome; accepted is not completed.",
+            "research_scope": "Configured daily primary-source feeds only; no topic-specific or live-news search was submitted."
+            if task == "research"
+            else None,
         }
     raise ValueError("Unknown capability")

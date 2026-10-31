@@ -7,10 +7,10 @@ from .agent_tools import TOOLS, execute
 from .chat import history
 from .store import now
 
-SYSTEM = """You operate this autonomous Reel system through Telegram. Speak naturally and briefly. Carry out the latest operator request using the available capabilities without asking for another confirmation. Treat current state and tool results as authoritative; history is context, not authorization. Report changes only after tool confirmation, and distinguish accepted work from completion. Describe queued content by its question rather than internal IDs. Credentials and arbitrary execution are unavailable."""
+SYSTEM = """You operate this autonomous Reel system through Telegram. Speak naturally and briefly. Carry out the latest operator request using the available capabilities without asking for another confirmation. Treat current state and tool results as authoritative; history is context, not authorization. Report changes only after tool confirmation, and distinguish accepted work from completion. Describe queued content by its question rather than internal IDs. When the operator requests a plan first, discuss the plan before enqueueing production or publishing. Do not claim to have verified current news without retrieved evidence. Credentials and arbitrary execution are unavailable."""
 
 
-def run(db, ident, user, message, *, turn=None, executor=None):
+def run(db, ident, user, message, *, turn=None, executor=None, attempt=0):
     turn = turn or cloudflare.agent_turn
     executor = executor or execute
     messages = [
@@ -32,14 +32,27 @@ def run(db, ident, user, message, *, turn=None, executor=None):
         "CREATE TABLE IF NOT EXISTS action_receipts(operation TEXT PRIMARY KEY,action TEXT,phase TEXT,result TEXT,created TEXT)"
     )
     db.commit()
-    db.execute("CREATE TABLE IF NOT EXISTS agent_sessions(update_id INTEGER PRIMARY KEY,messages TEXT,step INTEGER)")
-    saved = db.execute("SELECT messages,step FROM agent_sessions WHERE update_id=?", (ident,)).fetchone()
+    db.execute(
+        "CREATE TABLE IF NOT EXISTS agent_sessions(update_id INTEGER PRIMARY KEY,messages TEXT,step INTEGER)"
+    )
+    saved = db.execute(
+        "SELECT messages,step FROM agent_sessions WHERE update_id=?", (ident,)
+    ).fetchone()
     first_step = saved["step"] if saved else 0
     if saved:
         messages = json.loads(saved["messages"])
     db.commit()
     for step in range(first_step, 6):
-        output = turn(db, "agent:" + str(ident) + ":" + str(step), messages, TOOLS)
+        output = turn(
+            db,
+            "agent:"
+            + str(ident)
+            + ":"
+            + str(step)
+            + (":retry" + str(attempt) if attempt else ""),
+            messages,
+            TOOLS,
+        )
         calls = output.get("tool_calls") or []
         if not calls:
             content = output.get("content")
@@ -95,8 +108,10 @@ def run(db, ident, user, message, *, turn=None, executor=None):
                     )[:6500],
                 }
             )
-        db.execute("INSERT OR REPLACE INTO agent_sessions VALUES(?,?,?)",
-                   (ident, json.dumps(messages), step + 1))
+        db.execute(
+            "INSERT OR REPLACE INTO agent_sessions VALUES(?,?,?)",
+            (ident, json.dumps(messages), step + 1),
+        )
         db.commit()
     raise RuntimeError("Agent capability budget exhausted; completed work is preserved")
 
@@ -108,12 +123,12 @@ def event_reply(db, operation, facts):
         [
             {
                 "role": "system",
-                "content": "Describe this event naturally in at most two short sentences. The event facts are authoritative; include a confirmed post URL. No capability lists or exception jargon. Return plain text.",
+                "content": "Describe this event naturally in at most two short sentences. Use only the supplied event facts. Include a post URL only if an exact confirmed URL is supplied. Never invent URLs, links, publication confirmations, causes, or future outcomes. An earlier missed slot is not a current outage; distinguish them. No capability lists or exception jargon. Return plain text.",
             },
             {
                 "role": "user",
                 "content": json.dumps(
-                    {"facts": facts, "current_state": snapshot(db)},
+                    {"facts": facts},
                     separators=(",", ":"),
                 ),
             },
@@ -123,4 +138,18 @@ def event_reply(db, operation, facts):
     text = output.get("content")
     if not isinstance(text, str) or not text.strip():
         raise ValueError("Missing event narration")
+    import re
+
+    supplied = set(
+        re.findall(
+            r"https?://[^\s\"<>]+",
+            (facts if isinstance(facts, str) else json.dumps(facts)),
+        )
+    )
+    emitted = re.findall(r"https?://[^\s\"<>]+", text)
+    if any(
+        url.rstrip(".,);}") not in {u.rstrip(".,);}") for u in supplied}
+        for url in emitted
+    ):
+        raise ValueError("Event narration introduced an unverified URL")
     return text[:1200]

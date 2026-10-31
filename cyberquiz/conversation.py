@@ -5,7 +5,7 @@ import datetime as dt
 import json
 import time
 
-from .store import connect, config, transaction
+from .store import connect, config, transaction, now
 from .telegram import tables, send, mark_replied
 from . import chat
 
@@ -18,11 +18,18 @@ def process(ident):
     row = db.execute("SELECT * FROM telegram_updates WHERE id=?", (ident,)).fetchone()
     user = row["user_id"]
     message = row["command"]
+    db.execute(
+        "CREATE TABLE IF NOT EXISTS chat_recovery(update_id INTEGER PRIMARY KEY,attempts INTEGER DEFAULT 0,retry_at TEXT,error TEXT)"
+    )
+    recovery = db.execute(
+        "SELECT attempts FROM chat_recovery WHERE update_id=?", (ident,)
+    ).fetchone()
+    attempt = recovery[0] if recovery else 0
     started = time.monotonic()
     try:
         if user not in config()["telegram_allowed_user_ids"]:
             raise ValueError("Unauthorized operator")
-        reply = run(db, ident, user, message)
+        reply = run(db, ident, user, message, attempt=attempt)
         chat.remember(
             db,
             ident,
@@ -39,15 +46,58 @@ def process(ident):
         db.commit()
         send(user, reply)
         mark_replied(db, ident)
+        from .incidents import resolve
+
+        resolve(db, "conversation", phase="reply", job=str(ident))
     except Exception as exc:
         from .cloudflare import FreeQuotaDeferred
 
         if isinstance(exc, FreeQuotaDeferred):
-            reset = (dt.datetime.now(dt.timezone.utc).date() + dt.timedelta(days=1)).isoformat() + "T00:00:00+00:00"
-            db.execute('UPDATE telegram_updates SET status="chat_deferred",result=? WHERE id=?',
-                       (json.dumps({"reason": str(exc), "retry_at": reset}), ident))
+            reset = (
+                dt.datetime.now(dt.timezone.utc).date() + dt.timedelta(days=1)
+            ).isoformat() + "T00:00:00+00:00"
+            db.execute(
+                'UPDATE telegram_updates SET status="chat_deferred",result=? WHERE id=?',
+                (json.dumps({"reason": str(exc), "retry_at": reset}), ident),
+            )
             db.commit()
             return
+        detail = type(exc).__name__ + (
+            ": " + str(exc)[:180] if isinstance(exc, (ValueError, RuntimeError)) else ""
+        )
+        # Retry inference only. Agent sessions resume after durable tool receipts.
+        if isinstance(exc, RuntimeError) and "Cloudflare" in str(exc) and attempt < 2:
+            retry_at = (
+                dt.datetime.now(dt.timezone.utc)
+                + dt.timedelta(seconds=30 * (attempt + 1))
+            ).isoformat()
+            db.execute(
+                "INSERT OR REPLACE INTO chat_recovery VALUES(?,?,?,?)",
+                (ident, attempt + 1, retry_at, detail),
+            )
+            db.execute(
+                "UPDATE telegram_updates SET status='chat_retry',result=? WHERE id=?",
+                (detail, ident),
+            )
+            db.commit()
+            return
+        from .incidents import record
+
+        record(db, "conversation", "reply", None, detail, job=str(ident))
+        from .telegram import notify
+
+        notify(
+            db,
+            "chat-failed:" + str(ident),
+            json.dumps(
+                {
+                    "event": "chat_reply_failed",
+                    "request_received_at": row["created"],
+                    "error": detail,
+                    "effect": "The message was received but no reply completed. Any completed actions retain receipts.",
+                }
+            ),
+        )
         # Never replay tool calls after a failed reply; their receipts survive.
         db.execute(
             'UPDATE telegram_updates SET status="failed",result=? WHERE id=?',
@@ -66,12 +116,23 @@ def main():
         'UPDATE telegram_updates SET status="interrupted" WHERE status="chat_running"'
     )
     db.commit()
+    db.execute(
+        "CREATE TABLE IF NOT EXISTS chat_recovery(update_id INTEGER PRIMARY KEY,attempts INTEGER DEFAULT 0,retry_at TEXT,error TEXT)"
+    )
+    db.commit()
     with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
         pending = {}
         while True:
             pending = {p: u for p, u in pending.items() if not p.done()}
-            db.execute("UPDATE telegram_updates SET status='queuedchat' WHERE status='chat_deferred' AND json_extract(result,'$.retry_at')<=?",
-                       (dt.datetime.now(dt.timezone.utc).isoformat(),))
+            db.execute(
+                "UPDATE telegram_updates SET status='queuedchat' WHERE status='chat_deferred' AND json_extract(result,'$.retry_at')<=?",
+                (dt.datetime.now(dt.timezone.utc).isoformat(),),
+            )
+            db.commit()
+            db.execute(
+                "UPDATE telegram_updates SET status='queuedchat' WHERE status='chat_retry' AND id IN (SELECT update_id FROM chat_recovery WHERE retry_at<=?)",
+                (now(),),
+            )
             db.commit()
             if len(pending) < 2:
                 with transaction(db):

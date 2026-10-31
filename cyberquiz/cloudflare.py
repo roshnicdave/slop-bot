@@ -72,7 +72,9 @@ def reserve(db, operation, kind, neurons):
         if category is None:
             raise ValueError("Unknown quota category")
         limit = {
-            "chat": c.get("cf_chat_neuron_limit", c.get("cf_daily_neuron_limit", 10000)),
+            "chat": c.get(
+                "cf_chat_neuron_limit", c.get("cf_daily_neuron_limit", 10000)
+            ),
             "voice": 3000,
             "research": c.get("cf_research_neuron_limit", 3000),
         }[category]
@@ -124,7 +126,7 @@ def request(db, operation, kind, model, body, neurons):
             url,
             headers={"Authorization": "Bearer " + token},
             json=payload,
-            timeout=(5, 8 if kind in ("chat", "control") else 90),
+            timeout=(5, 30 if kind in ("chat", "control") else 90),
         )
     except requests.RequestException:
         raise RuntimeError(

@@ -76,3 +76,10 @@ alternatives across the opening title, diagram and narration. Hidden assumptions
 not resolve ambiguity in the visible puzzle. A generic model pass without those
 explicit checks cannot approve a new draft. Retired examples remain readable for
 historical receipts but are excluded from new selection.
+
+Conversation inference failures retain the original Telegram update and resume from
+persisted tool receipts, using a separately accounted inference attempt. At most two
+transient Cloudflare retries are allowed before recording a reply incident and queuing
+an owner alert. Inference has a 30-second response timeout. Unknown reservations stay
+charged against the free allowance. Notification narration uses only its event facts;
+URLs absent from those facts are rejected instead of sent.

@@ -183,7 +183,6 @@ def bank():
         vlan(),
         subnet(),
         gateway(),
-        dns(),
         asymmetric_mask(),
         wrong_gateway(),
         *labs(),

@@ -70,3 +70,9 @@ than blindly resent. No monitor can deliver through a Telegram outage.
 
 A known, approved Meta container continues processing beyond its original posting
 window. Its existing identity is reused; unknown submissions remain blocked.
+
+Editorial approval separately checks answer leakage, required inference and plausible
+alternatives across the opening title, diagram and narration. Hidden assumptions do
+not resolve ambiguity in the visible puzzle. A generic model pass without those
+explicit checks cannot approve a new draft. Retired examples remain readable for
+historical receipts but are excluded from new selection.

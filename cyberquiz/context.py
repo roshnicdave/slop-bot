@@ -60,6 +60,27 @@ def read(db, resource):
                     )
                 }
             )
+            diagram = plan.get("diagram") or {}
+            version = (
+                plan.get("quality", {})
+                .get("artifact", {})
+                .get("diagram_renderer_version", 0)
+            )
+            model = plan.get("model") or {}
+            representation = (
+                "browser_mock"
+                if model.get("kind") == "url"
+                else "text_panel"
+                if diagram.get("kind") == "config" and version < 2
+                else "technical_diagram"
+                if diagram.get("kind")
+                else None
+            )
+            item["visual"] = {
+                "renderer_version": version,
+                "representation": representation,
+                "model": model,
+            }
         return {
             "ready_count": db.execute(
                 "SELECT COUNT(*) FROM jobs WHERE approved=1 AND status IN ('rendered','container_created')"

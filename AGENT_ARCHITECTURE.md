@@ -131,3 +131,10 @@ The client rejects provider responses that omit the required call. Once a tool r
 exists, the model can answer without calling it again. Workers AI's Qwen adapter sends
 empty string content for assistant tool-call messages while preserving the durable
 provider-neutral transcript, whose content may be null.
+
+Micro-labs render their verified model as technical pictures: devices, connections,
+packets, address allocations and protocol state. Configuration text is retained as
+source metadata, not used as a text-card fallback. Unsupported visual types fail
+before production. The solver receives the picture's model data without seed,
+answer-key or repair fields. Unsubmitted queued clips with older visuals are rebuilt
+from existing narration; submitted media requires reconciliation before replacement.

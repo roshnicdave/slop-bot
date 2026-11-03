@@ -95,3 +95,8 @@ attempt allowance. Paid or produced attempts still count toward that separate ca
 monthly/per-job reservations and the shared free quota remain enforced. A publishing
 pause is rechecked after Meta processing and before final submission. It cannot
 reverse a publication already accepted by Meta.
+
+Diagram renderer version is written into the encoded clip's timing manifest and
+artifact checks. Queued unsubmitted text-card clips are refreshed without voice or
+image API calls. Missing narration holds the job rather than silently purchasing it
+again. A confirmed or uncertain Meta submission is never replaced by this refresh.

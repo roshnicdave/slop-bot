@@ -43,6 +43,9 @@ def _tick(db):
         from .maintenance import cleanup, backup
 
         cleanup(db)
+        from .production import refresh_visuals
+
+        refresh_visuals(db)
         from .telegram import retry_notifications
 
         retry_notifications(db)

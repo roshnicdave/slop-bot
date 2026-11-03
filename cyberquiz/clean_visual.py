@@ -123,16 +123,9 @@ def diagram(d, p, fixed):
             if fixed:
                 text(d, p["answer"], 360, 540, 29, GREEN, True, center=True)
             return
-        # Use the checked renderer for configuration cards; strip decorative label.
-        lines = view["lines"]
-        d.rounded_rectangle(
-            (60, 370, 660, 622), radius=15, fill="#f0f4f7", outline="#c9d5dc", width=2
-        )
-        for n, line in enumerate(lines):
-            size = 24
-            while F(size, True).getlength(line) > 550:
-                size -= 1
-            text(d, line, 86, 398 + n * 49, size, INK, True)
+        from .lab_visual import draw
+
+        draw(d, p, fixed)
         return
     if kind != "switch":
         from .visual import topology

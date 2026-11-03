@@ -94,81 +94,9 @@ def topology(d, p, fixed=False, phase=0):
         if fix.get("dns_reachable"):
             scene["right"]["ip"] = "DNS query: REPLY"
     if scene["kind"] == "config":
-        d.rounded_rectangle((26, 356, 694, 637), radius=22, fill="#102b45")
-        model = p.get("model", {})
-        kind = model.get("kind")
-        lines = list(scene["lines"])
-        highlight = None
-        color = GREEN
-        if p.get("_reveal") or fixed:
-            if kind == "route":
-                highlight = next(
-                    (
-                        i + 1
-                        for i, (_, hop) in enumerate(model["routes"])
-                        if hop == p["answer"]
-                    ),
-                    None,
-                )
-            elif kind in ("acl", "trunk", "mtu", "broadcast", "tls", "duplicate"):
-                highlight = {
-                    "acl": 1,
-                    "trunk": 2,
-                    "mtu": 0,
-                    "broadcast": 0,
-                    "tls": 1,
-                    "duplicate": 1,
-                }[kind]
-                color = GREEN if fixed else RED
-        repaired = fixed and kind in (
-            "acl",
-            "trunk",
-            "mtu",
-            "broadcast",
-            "tls",
-            "duplicate",
-        )
-        if repaired:
-            if kind == "acl":
-                for i, (action, net) in enumerate(model["fixed_rules"]):
-                    lines[i + 1] = f"{10 * (i + 1)} {action} {net}"
-            elif kind == "trunk":
-                lines[2] = "Switch B trunk allows: " + ",".join(
-                    map(str, model["fixed_b"])
-                )
-            elif kind == "mtu":
-                lines[0] = f"IP packet: {model['fixed_packet']} bytes, DF = 1"
-            elif kind == "broadcast":
-                lines[0] = "PC: " + model["fixed"]
-            elif kind == "tls":
-                lines[1] = "Certificate SAN: " + model["host"]
-            elif kind == "duplicate":
-                lines[1] = "PC B: " + model["fixed_b"] + ", MAC ...:BB"
-                lines[2] = "Conflict removed. Update ARP if needed."
-        label = (
-            "FIXED CONFIG"
-            if repaired
-            else "FORWARDING DECISION"
-            if fixed and kind == "route"
-            else "ORIGINAL EVIDENCE"
-            if fixed
-            else "EVIDENCE / CONFIG"
-        )
-        text(d, label, 48, 375, 17, "#8dc9d4", True)
-        for i, line in enumerate(lines):
-            size = 25
-            yy = 419 + i * 46
-            if i == highlight:
-                d.rounded_rectangle(
-                    (39, yy - 5, 681, yy + 35),
-                    radius=6,
-                    fill="#173f3a" if color == GREEN else "#512f38",
-                    outline=color,
-                    width=2,
-                )
-            while F(size, True).getlength(line) > 620:
-                size -= 1
-            text(d, line, 48, yy, size, "#ffffff", True)
+        from .clean_visual import diagram
+
+        diagram(d, p, fixed)
         return
     x1, x2, x3 = 115, 360, 605
     y = 470
@@ -256,7 +184,7 @@ def topology(d, p, fixed=False, phase=0):
 
 
 def frame(p, stage="question", remaining=None, phase=0, progress=0, subtitle=None):
-    if p.get("design_version") == 3:
+    if p.get("design_version") == 3 or p.get("diagram", {}).get("kind") == "config":
         from .clean_visual import frame as clean_frame
 
         return clean_frame(p, stage, remaining, phase, progress, subtitle)
@@ -337,6 +265,8 @@ def preview(plan, folder):
 
 
 def render(folder):
+    from .lab_visual import VERSION
+
     folder = Path(folder).resolve()
     p = json.loads((folder / "plan.json").read_text())
     preview(p, folder)
@@ -542,6 +472,7 @@ def render(folder):
                 "fix_at": intro + decision + fix_delay,
                 "narration_characters": len(p["intro"]) + len(p["outro"]),
                 "animation_fps": fps,
+                "diagram_renderer_version": VERSION,
                 "segments": segments,
             },
             indent=2,

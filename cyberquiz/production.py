@@ -218,3 +218,68 @@ def recover(db):
             )
         else:
             resume(db, ident)
+
+
+def refresh_visuals(db, job=None):
+    """Upgrade unsubmitted queued media using its existing narration, never a paid call."""
+    from .lab_visual import VERSION
+    from .quality import layout, artifact
+    from .visual import render
+
+    with worker_lock():
+        rows = db.execute(
+            "SELECT * FROM jobs WHERE status='rendered' AND approved=1"
+            + (" AND id=?" if job else ""),
+            (job,) if job else (),
+        ).fetchall()
+        for row in rows:
+            p = json.loads(row["plan"] or "{}")
+            if (
+                p.get("diagram", {}).get("kind") != "config"
+                or p.get("quality", {})
+                .get("artifact", {})
+                .get("diagram_renderer_version", 0)
+                >= VERSION
+            ):
+                continue
+            if row["container_id"] or row["media_id"]:
+                raise ValueError(
+                    "Submitted media needs reconciliation before its visual can change"
+                )
+            folder = ROOT / "out" / row["id"]
+            try:
+                scenarios.validate(p)
+                layout(p)
+                if not all(
+                    (folder / (name + ".wav")).exists()
+                    for name in ("intro", "reveal_voice", "fix_voice")
+                ):
+                    raise ValueError("Saved narration unavailable for visual refresh")
+                db.execute(
+                    "UPDATE jobs SET approved=0,status='rendering' WHERE id=?",
+                    (row["id"],),
+                )
+                db.commit()
+                render(folder)
+                p["quality"]["artifact"] = artifact(folder)
+                (folder / "plan.json").write_text(json.dumps(p, indent=2))
+                (folder / "quality.json").write_text(json.dumps(p["quality"], indent=2))
+                db.execute(
+                    "UPDATE jobs SET plan=?,approved=1,status='rendered',error=NULL WHERE id=?",
+                    (json.dumps(p), row["id"]),
+                )
+                if db.execute(
+                    "SELECT 1 FROM sqlite_master WHERE name='telegram_media'"
+                ).fetchone():
+                    db.execute("DELETE FROM telegram_media WHERE job=?", (row["id"],))
+                db.commit()
+            except Exception as exc:
+                db.execute(
+                    "UPDATE jobs SET approved=0,status='held_quality',error=? WHERE id=?",
+                    (
+                        "Visual refresh: " + type(exc).__name__ + ": " + str(exc)[:160],
+                        row["id"],
+                    ),
+                )
+                db.commit()
+                raise

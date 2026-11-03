@@ -5,10 +5,13 @@ import re
 from . import scenarios, cloudflare
 from .store import now
 
-REVIEW_VERSION = 5
+REVIEW_VERSION = 6
 
 
 def layout(p):
+    from .lab_visual import validate as validate_visual
+
+    validate_visual(p)
     from .visual import F
     from .render import wrap
 
@@ -57,7 +60,10 @@ def review(db, job, p):
         }
     # Solve the opening without the answer key or later explanation. This avoids
     # a critic inventing objections after being shown the answer it should assess.
-    candidate = {k: p[k] for k in ("question", "diagram", "options", "intro")}
+    from .lab_visual import evidence
+
+    candidate = {k: p[k] for k in ("question", "options", "intro")}
+    candidate["diagram"] = evidence(p)
     solved = cloudflare.llm(
         db,
         job + ":editorial-review",
@@ -155,6 +161,7 @@ def artifact(folder):
     if not peak or float(peak.group(1)) < -45:
         raise ValueError("Narration is missing or too quiet")
     return {
+        "diagram_renderer_version": timing.get("diagram_renderer_version", 0),
         "decode_ok": True,
         "duration_seconds": timing["total_seconds"],
         "audio_peak_db": float(peak.group(1)),

@@ -89,6 +89,22 @@ def _publish(db, job, *, immediate=False):
         raise ValueError("Meta needs an HTTPS media URL; set public_media_base_url")
     folder = ROOT / "out" / job
     p = json.loads(row["plan"])
+    from .lab_visual import VERSION
+
+    if (
+        p.get("diagram", {}).get("kind") == "config"
+        and p.get("quality", {}).get("artifact", {}).get("diagram_renderer_version", 0)
+        < VERSION
+    ):
+        if row["container_id"] or row["media_id"]:
+            raise ValueError("Submitted media needs visual reconciliation")
+        from .production import refresh_visuals
+
+        refresh_visuals(db, job)
+        row = db.execute("SELECT * FROM jobs WHERE id=?", (job,)).fetchone()
+        if row["status"] != "rendered" or not row["approved"]:
+            raise ValueError("Visual refresh did not pass")
+        p = json.loads(row["plan"])
     if p.get("visual"):
         from .scenarios import validate
         from .quality import layout

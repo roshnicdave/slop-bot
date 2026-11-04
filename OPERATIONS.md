@@ -92,6 +92,9 @@ index; it sees displayed device labels and values without the hidden answer key.
 An independent title-only check rejects restated answer choices before the solver
 sees the diagram. Creative opening drafts receive the verified question rather
 than the answer key or diagram values, including on a rewrite.
+Review gates use explicit checks for a unique correct solution, possible protocol
+evidence, a clear question, answer leakage and useful distractors. Free-form notes
+about the intentionally broken configuration do not themselves reject a puzzle.
 
 Editorial approval separately checks answer leakage, required inference and plausible
 alternatives across the opening title, diagram and narration. Hidden assumptions do

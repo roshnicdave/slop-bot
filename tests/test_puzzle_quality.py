@@ -29,6 +29,7 @@ class PuzzleQualityTests(unittest.TestCase):
             "answer_text": p["answer"],
             "ambiguous": False,
             "clear_question": True,
+            "evidence_consistent": True,
             "issues": [],
             "title_gives_answer": False,
             "diagram_needed": True,
@@ -62,6 +63,7 @@ class PuzzleQualityTests(unittest.TestCase):
             {"ambiguous": True},
             {"clear_question": False},
             {"clear_question": None},
+            {"evidence_consistent": False},
             {"title_gives_answer": True},
             {"diagram_needed": False},
             {"plausible_distractors": False},
@@ -73,6 +75,9 @@ class PuzzleQualityTests(unittest.TestCase):
         self.assertTrue(result["passed"])
         self.assertNotIn("verified_answer_key", messages[1]["content"])
         self.assertNotIn("post_caption", messages[1]["content"])
+
+    def test_notes_about_the_intentional_fault_do_not_override_explicit_checks(self):
+        self.assertTrue(self.evaluate(issues=["Different VLANs shown"])[0]["passed"])
 
     def test_legacy_dns_puzzle_is_not_selected_for_new_reels(self):
         self.assertNotIn(dns()["key"], {p["key"] for p in bank()})

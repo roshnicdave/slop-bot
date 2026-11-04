@@ -5,7 +5,7 @@ import re
 from . import scenarios, cloudflare
 from .store import now
 
-REVIEW_VERSION = 9
+REVIEW_VERSION = 10
 
 
 def layout(p):
@@ -68,12 +68,12 @@ def review(db, job, p):
         [
             {
                 "role": "system",
-                "content": "Check whether the opening directly states or paraphrases an answer choice. "
-                "Do not solve the puzzle, infer a cause from symptoms, or guess the correct answer. "
-                "You cannot see the diagram or answer key. Return only JSON "
-                "{restates_option:string copied exactly from an option or null,reasoning:string}. "
-                "A question can give away the answer in its premise. Distinguish an observed symptom "
-                "from a statement of its underlying diagnosis. Return null when no choice is stated.",
+                "content": "Check textual entailment ONLY: does the opening literally assert or paraphrase "
+                "an answer option as a fact? Do not infer a cause from a symptom and do not answer the quiz. "
+                "It does not matter what usually causes the symptom. A diagnosis requiring technical "
+                "inference is not textually stated. You cannot see the diagram or answer key. Return only JSON "
+                "{restates_option: exact option text or null,opening_quote: exact factual phrase or null}. "
+                "No reasoning or other fields.",
             },
             {
                 "role": "user",
@@ -88,7 +88,7 @@ def review(db, job, p):
         ],
         kind="editorial",
         max_tokens=160,
-        model=cloudflare.REVIEW,
+        model=cloudflare.EDITOR,
     )
     if "restates_option" not in title or title["restates_option"] is not None:
         return {

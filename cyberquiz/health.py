@@ -89,7 +89,13 @@ def check(db, *, services=None):
             notify(
                 db,
                 "missed-post:" + issue["slot"],
-                json.dumps({"event": "scheduled_post_missed", "slot": issue["slot"]}),
+                json.dumps(
+                    {
+                        "event": "scheduled_post_missed",
+                        "slot": issue["slot"],
+                        "issues": [i for i in current if i["kind"] != "missed_post"],
+                    }
+                ),
             )
     blockers = [i for i in current if i["kind"] != "missed_post"]
     old_blockers = [i for i in previous if i["kind"] != "missed_post"]

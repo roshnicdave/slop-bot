@@ -90,6 +90,82 @@ class ResearchBudgetTests(unittest.TestCase):
 
 
 class CompletedPlanningTests(unittest.TestCase):
+    def test_malformed_completed_plan_gets_one_durable_repair(self):
+        from cyberquiz.scout import _planning_call
+
+        with tempfile.TemporaryDirectory() as folder:
+            db = connect(Path(folder) / "db")
+            db.execute("CREATE TABLE cf_calls(operation TEXT,status TEXT,result TEXT)")
+            db.execute(
+                "INSERT INTO cf_calls VALUES(?,?,?)",
+                (
+                    "plan",
+                    "complete",
+                    json.dumps({"success": True, "result": {"response": '{"ideas":['}}),
+                ),
+            )
+            value = {"ideas": [{"key": "pool-exhausted"}]}
+
+            def repair(db, operation, messages, **kwargs):
+                self.assertEqual(operation, "plan:json-repair-v1")
+                db.execute(
+                    "INSERT INTO cf_calls VALUES(?,?,?)",
+                    (
+                        operation,
+                        "complete",
+                        json.dumps({"success": True, "result": {"response": value}}),
+                    ),
+                )
+                return value
+
+            with patch(
+                "cyberquiz.scout.cloudflare.llm", side_effect=repair
+            ) as provider:
+                self.assertEqual(_planning_call(db, "plan", []), value)
+                self.assertEqual(_planning_call(db, "plan", []), value)
+                provider.assert_called_once()
+            db.close()
+
+    def test_unknown_planning_request_does_not_enter_output_repair(self):
+        from cyberquiz.scout import _planning_call
+        from cyberquiz.cloudflare import CloudflareRequestError
+
+        with tempfile.TemporaryDirectory() as folder:
+            db = connect(Path(folder) / "db")
+            with patch(
+                "cyberquiz.scout.cloudflare.llm",
+                side_effect=CloudflareRequestError("Unknown"),
+            ) as provider:
+                with self.assertRaises(CloudflareRequestError):
+                    _planning_call(db, "plan", [])
+                provider.assert_called_once()
+            db.close()
+
+    def test_failed_completed_repair_cannot_spawn_more_inferences(self):
+        from cyberquiz.scout import _planning_call
+        from cyberquiz.cloudflare import ModelOutputError
+
+        with tempfile.TemporaryDirectory() as folder:
+            db = connect(Path(folder) / "db")
+            db.execute("CREATE TABLE cf_calls(operation TEXT,status TEXT,result TEXT)")
+            for operation in ("plan", "plan:json-repair-v1"):
+                db.execute(
+                    "INSERT INTO cf_calls VALUES(?,?,?)",
+                    (
+                        operation,
+                        "complete",
+                        json.dumps(
+                            {"success": True, "result": {"response": '{"ideas":['}}
+                        ),
+                    ),
+                )
+            with patch("cyberquiz.scout.cloudflare.llm") as provider:
+                for _ in range(2):
+                    with self.assertRaises(ModelOutputError):
+                        _planning_call(db, "plan", [])
+                provider.assert_not_called()
+            db.close()
+
     def test_completed_planning_is_reused_without_provider_call(self):
         from cyberquiz.scout import _planning_call
 

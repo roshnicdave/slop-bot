@@ -48,11 +48,20 @@ def ensure(db, recover_preflight=False):
             < REVIEW_VERSION
         )
         clock = dt.datetime.now(dt.timezone.utc)
+        research_recovered = bool(
+            last
+            and last[2] is None
+            and db.execute(
+                "SELECT 1 FROM incidents WHERE component='research' AND resolved>? LIMIT 1",
+                (last[0],),
+            ).fetchone()
+        )
         if (
             last
             and last[1] != "complete"
             and not (recover_preflight and last[2] is None)
             and not review_upgraded
+            and not research_recovered
             and (clock - dt.datetime.fromisoformat(last[0])).total_seconds() < 1800
         ):
             return "backoff"

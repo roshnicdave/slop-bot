@@ -48,7 +48,10 @@ export default {
           if (!['auto','required','none'].includes(input.tool_choice)) return new Response('Tool choice denied',{status:400});
           options.tool_choice = input.tool_choice;
         }
-      } else options.response_format = {type:'json_object'};
+      } else if (input.response_format) {
+        if (input.response_format.type !== 'json_object') return new Response('Format denied',{status:400});
+        options.response_format = {type:'json_object'};
+      }
       let result;
       try { result = await env.AI.run(model, options); }
       catch (error) { return Response.json({success:false,error:String(error.message).slice(0,400)},{status:502}); }

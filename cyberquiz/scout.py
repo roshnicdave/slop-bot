@@ -85,7 +85,7 @@ def gather(db):
     }
 
 
-def _planning_call(db, operation, messages, **kwargs):
+def _planning_result(db, operation, messages, **kwargs):
     """Reuse confirmed inference results; never replay an uncertain request."""
     if db.execute("SELECT 1 FROM sqlite_master WHERE name='cf_calls'").fetchone():
         row = db.execute(
@@ -93,10 +93,31 @@ def _planning_call(db, operation, messages, **kwargs):
         ).fetchone()
         if row and row["status"] == "complete" and row["result"]:
             payload = json.loads(row["result"])
-            if payload.get("success"):
-                value = payload["result"].get("response")
-                return value if isinstance(value, dict) else json.loads(value)
+            return cloudflare.parse_llm_response(payload)
     return cloudflare.llm(db, operation, messages, **kwargs)
+
+
+def _planning_call(db, operation, messages, **kwargs):
+    try:
+        return _planning_result(db, operation, messages, **kwargs)
+    except cloudflare.ModelOutputError:
+        # Only completed, malformed results qualify. Unknown requests and quota
+        # deferrals never enter this path. One durable repair per operation.
+        repair = [
+            *messages,
+            {
+                "role": "user",
+                "content": "The completed draft was invalid JSON. Answer the original task again as one compact JSON object. "
+                "At most two ideas; keep each text field under 100 characters except exact source URLs. "
+                "No extra fields, explanations, copied evidence, or markdown.",
+            },
+        ]
+        return _planning_result(
+            db,
+            operation + ":json-repair-v1",
+            repair,
+            **dict(kwargs, model=cloudflare.REVIEW, max_tokens=1400),
+        )
 
 
 def _daily(db, force=False):
@@ -306,8 +327,12 @@ def daily(db, force=False):
         return [
             dict(r)
             for r in db.execute(
-                "SELECT operation,status FROM cf_calls WHERE operation IN (?,?)",
-                ("daily-scout-v2:" + day, "daily-scout-followup-v2:" + day),
+                "SELECT operation,status FROM cf_calls WHERE operation IN (?,?,?,?)",
+                tuple(
+                    prefix + day + suffix
+                    for prefix in ("daily-scout-v2:", "daily-scout-followup-v2:")
+                    for suffix in ("", ":json-repair-v1")
+                ),
             )
         ]
 

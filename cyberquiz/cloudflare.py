@@ -29,6 +29,33 @@ class FreeQuotaDeferred(ValueError):
     """No provider request was submitted; safe to defer until allowance resets."""
 
 
+class ModelOutputError(ValueError):
+    """A completed inference returned unusable structured output."""
+
+
+def parse_llm_response(data):
+    if not data.get("success"):
+        raise RuntimeError("Cloudflare inference did not report success")
+    result = data["result"]
+    value = result.get("response")
+    if value is None:
+        value = (result.get("choices") or [{}])[0].get("message", {}).get("content", "")
+    if isinstance(value, dict):
+        return value
+    try:
+        text = re.sub(r"^<think>.*?</think>\s*", "", value.strip(), flags=re.S)
+        if text.startswith("```"):
+            text = re.sub(r"^```(?:json)?\s*|\s*```$", "", text)
+        parsed = json.loads(text)
+        if not isinstance(parsed, dict):
+            raise ValueError("Expected a JSON object")
+        return parsed
+    except (ValueError, AttributeError, TypeError) as exc:
+        raise ModelOutputError(
+            "Completed model response is not a valid JSON object"
+        ) from exc
+
+
 def available():
     k = secrets()
     return bool(
@@ -202,25 +229,15 @@ def llm(db, operation, messages, kind="research", max_tokens=1000, *, model=None
         operation,
         kind,
         model,
-        {"messages": messages, "max_tokens": max_tokens, "temperature": 0.35},
+        {
+            "messages": messages,
+            "max_tokens": max_tokens,
+            "temperature": 0.35,
+            "response_format": {"type": "json_object"},
+        },
         neurons,
     )
-    data = r.json()
-    if not data.get("success"):
-        raise RuntimeError("Cloudflare inference did not report success")
-    value = data["result"].get("response")
-    if value is None:
-        value = (
-            (data["result"].get("choices") or [{}])[0]
-            .get("message", {})
-            .get("content", "")
-        )
-    if isinstance(value, dict):
-        return value
-    text = re.sub(r"^<think>.*?</think>\s*", "", value.strip(), flags=re.S)
-    if text.startswith("```"):
-        text = re.sub(r"^```(?:json)?\s*|\s*```$", "", text)
-    return json.loads(text)
+    return parse_llm_response(r.json())
 
 
 def normalize_wav(path):
@@ -296,10 +313,11 @@ def agent_turn(db, operation, messages, tools, *, model=REVIEW):
         messages[0]["content"] += "\n/no_think"
     body = {
         "messages": messages,
-        "tools": tools,
         "max_tokens": AGENT_OUTPUT_TOKENS,
         "temperature": 0.2,
     }
+    if tools:
+        body["tools"] = tools
     require_tool = bool(tools) and not any(m.get("role") == "tool" for m in messages)
     if require_tool:
         body["tool_choice"] = "required"

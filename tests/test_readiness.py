@@ -58,6 +58,26 @@ class ReadinessTests(unittest.TestCase):
             self.cfg["generation_enabled"] = False
             self.assertEqual(ensure(self.db), "paused")
 
+    def test_confirmed_research_recovery_releases_preflight_backoff(self):
+        from cyberquiz.incidents import record, resolve
+
+        with (
+            patch("cyberquiz.readiness.config", return_value=self.cfg),
+            patch(
+                "cyberquiz.readiness.worker_lock", side_effect=contextlib.nullcontext
+            ),
+            patch(
+                "cyberquiz.production.make", side_effect=ValueError("research held")
+            ) as generate,
+        ):
+            record(self.db, "research", "planning", None, "Invalid JSON")
+            self.assertEqual(ensure(self.db), "held")
+            self.assertEqual(ensure(self.db), "backoff")
+            resolve(self.db, "research")
+            self.assertEqual(ensure(self.db), "held")
+            self.assertEqual(ensure(self.db), "backoff")
+            self.assertEqual(generate.call_count, 2)
+
     def test_post_notifications_reach_both_once_other_alerts_owner_only(self):
         tables(self.db)
         self.db.executemany("INSERT INTO telegram_chats VALUES(?,?)", [(1, 1), (2, 2)])

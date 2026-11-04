@@ -68,6 +68,13 @@ existing audience. Failed AI notice composition remains pending with bounded ret
 including after daily quota reset. Telegram transport uncertainty is retained rather
 than blindly resent. No monitor can deliver through a Telegram outage.
 
+Completed research output that cannot be parsed gets one durable JSON repair within
+the shared free allowance. The original response and accounting remain unchanged;
+unknown provider outcomes never qualify for repair. Confirmed research recovery
+releases a refill's preflight backoff. Missed-post alerts include current failure
+details. Notification narration uses plain text without an empty tool list; research
+requests explicitly select JSON output.
+
 A known, approved Meta container continues processing beyond its original posting
 window. Its existing identity is reused; unknown submissions remain blocked.
 

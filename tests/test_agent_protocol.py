@@ -37,6 +37,7 @@ class AgentProtocolTests(unittest.TestCase):
                 None, "test", messages, [{"name": "read_system"}]
             )
         self.assertNotIn("tool_choice", request.call_args.args[4])
+
         self.assertEqual(result["content"], "Publishing is paused.")
 
     def test_notifications_do_not_force_state_mutation(self):
@@ -51,6 +52,8 @@ class AgentProtocolTests(unittest.TestCase):
                 None, "event", [{"role": "system", "content": "event"}], []
             )
         self.assertNotIn("tool_choice", request.call_args.args[4])
+        self.assertNotIn("tools", request.call_args.args[4])
+        self.assertNotIn("response_format", request.call_args.args[4])
 
     def test_provider_tool_followup_normalizes_null_without_mutating_transcript(self):
         response = SimpleNamespace(

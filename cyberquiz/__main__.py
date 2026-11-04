@@ -3,7 +3,6 @@ import datetime as dt
 import json
 import shutil
 import sys
-from zoneinfo import ZoneInfo
 
 from .store import ROOT, connect, config, now, worker_lock
 from . import providers, content
@@ -25,6 +24,37 @@ def continue_publication(db, cfg):
         "SELECT id FROM jobs WHERE approved=1 AND status='container_created'"
     ).fetchall():
         publish(db, pending["id"])
+
+
+def publish_due(db, cfg, clock=None):
+    from .schedule import next_post_at
+
+    if not cfg.get("publishing_enabled") or cfg.get("emergency_pause"):
+        return False
+    continue_publication(db, cfg)
+    clock = clock or dt.datetime.now(dt.timezone.utc)
+    published = [
+        dt.datetime.fromisoformat(r[0])
+        for r in db.execute(
+            "SELECT published_at FROM jobs WHERE published_at IS NOT NULL"
+        )
+    ]
+    due = next_post_at(cfg, published, clock)
+    if due is None or clock < due:
+        return False
+    if db.execute(
+        "SELECT 1 FROM jobs WHERE status IN ('publish_unknown','container_submitting')"
+    ).fetchone():
+        return False
+    row = db.execute(
+        "SELECT id FROM jobs WHERE approved=1 AND status='rendered' ORDER BY created LIMIT 1"
+    ).fetchone()
+    if not row:
+        return False
+    from .instagram import publish
+
+    publish(db, row["id"])
+    return True
 
 
 def tick(db):
@@ -58,7 +88,12 @@ def _tick(db):
             from .production import recover
 
             recover(db)
-        local = dt.datetime.now(ZoneInfo(cfg["timezone"]))
+        if cfg["publishing_enabled"]:
+            from .instagram import refresh_token_if_due
+
+            refresh_token_if_due()
+            cfg = config()
+        posted = publish_due(db, cfg)
         sources = db.execute("SELECT MAX(fetched) FROM sources").fetchone()[0]
         if (
             not sources
@@ -71,19 +106,16 @@ def _tick(db):
                 content.refresh_sources(db)
             except Exception:
                 pass  # primary-source outage must not block verified queued posts
-        research_ok = True
         if cfg.get("generation_enabled") and not cfg.get("emergency_pause"):
             from .scout import daily
 
             try:
                 daily(db)
             except Exception:
-                research_ok = False
+                pass  # Research records its own incident; ready posts can continue.
         if cfg["publishing_enabled"]:
-            from .instagram import refresh_token_if_due, insights
+            from .instagram import insights
 
-            refresh_token_if_due()
-            cfg = config()
             marker = ROOT / "data" / "last-insights.txt"
             if cfg["publishing_enabled"] and (
                 not marker.exists()
@@ -93,78 +125,22 @@ def _tick(db):
                 ).total_seconds()
                 > 21600
             ):
-                insights(db)
-                marker.write_text(now())
-        active_slot = any(
-            0
-            <= (
-                local
-                - local.replace(
-                    hour=int(clock.split(":")[0]),
-                    minute=int(clock.split(":")[1]),
-                    second=0,
-                    microsecond=0,
-                )
-            ).total_seconds()
-            < 3600
-            for clock in cfg["slots"][: cfg["posts_per_day"]]
-        )
-        continue_publication(db, cfg)
-        published = [
-            dt.datetime.fromisoformat(r[0])
-            for r in db.execute(
-                "SELECT published_at FROM jobs WHERE published_at IS NOT NULL"
-            )
-        ]
-        today_count = sum(
-            p.astimezone(ZoneInfo(cfg["timezone"])).date() == local.date()
-            for p in published
-        )
-        spaced = (
-            not published
-            or (dt.datetime.now(dt.timezone.utc) - max(published)).total_seconds()
-            >= 21600
-        )
-        uncertain = (
-            db.execute(
-                'SELECT COUNT(*) FROM jobs WHERE status IN ("publish_unknown","container_submitting")'
-            ).fetchone()[0]
-            > 0
-        )
-        if cfg.get("generation_enabled", False) and research_ok:
-            slots = cfg["slots"][: cfg["posts_per_day"]]
-            for clock in slots:
-                hour, minute = map(int, clock.split(":"))
-                due = local.replace(hour=hour, minute=minute, second=0, microsecond=0)
-                # Skip missed days and old slots; do not generate a catch-up burst.
-                if not 0 <= (local - due).total_seconds() < 3600:
-                    continue
-                slot = due.isoformat()
-                if db.execute("SELECT 1 FROM jobs WHERE slot=?", (slot,)).fetchone():
-                    continue
-                if db.execute(
-                    "SELECT 1 FROM jobs WHERE approved=1 AND status IN ('rendered','container_created') LIMIT 1"
-                ).fetchone():
-                    continue
-                count = db.execute("SELECT COUNT(*) FROM jobs").fetchone()[0]
-                make(db, recent=count % 3 == 2, slot=slot)
-                # Next tick will publish, provided approval and connection are ready.
-        if (
-            cfg["publishing_enabled"]
-            and not uncertain
-            and active_slot
-            and today_count < cfg["posts_per_day"]
-            and spaced
-        ):
-            from .instagram import publish
+                try:
+                    insights(db)
+                    marker.write_text(now())
+                except Exception as exc:
+                    from .incidents import record
 
-            for row in db.execute(
-                'SELECT id FROM jobs WHERE approved=1 AND status IN ("rendered","container_created") ORDER BY created LIMIT 1'
-            ).fetchall():
-                publish(db, row["id"])
+                    record(db, "insights", "collection", None, type(exc).__name__)
+                else:
+                    from .incidents import resolve
+
+                    resolve(db, "insights", phase="collection")
         from .readiness import ensure
 
         ensure(db)
+        if not posted and publish_due(db, config()):
+            ensure(db)
 
 
 def report(db):

@@ -3,6 +3,7 @@
   "monthly_budget_usd": 1.8,
   "per_job_budget_usd": 0.03,
   "posts_per_day": 2,
+  "min_post_spacing_minutes": 360,
   "timezone": "America/Los_Angeles",
   "slots": [
     "12:35",

@@ -36,7 +36,7 @@ def evidence(p):
     validate(p)
     if p["diagram"]["kind"] != "config":
         return p["diagram"]
-    return {
+    result = {
         "kind": "technical_visual",
         "data": {
             k: v
@@ -44,6 +44,13 @@ def evidence(p):
             if k not in ("kind", "expected", "seed") and not k.startswith("fixed")
         },
     }
+    if p["model"]["kind"] == "duplicate":
+        result["nodes"] = [
+            {"type": "PC", "label": "PC A", "ip": p["model"]["a"]},
+            {"type": "PC", "label": "PC B", "ip": p["model"]["b"]},
+        ]
+        result["connection"] = "Both PCs connect to a switch on the same VLAN"
+    return result
 
 
 def server(d, x, y):

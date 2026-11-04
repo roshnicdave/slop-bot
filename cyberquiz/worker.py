@@ -166,7 +166,23 @@ def main():
                             from .incidents import resolve
 
                             resolve(db, "worker", phase="maintenance")
-                            due = deadline(config())
+                            published = [
+                                dt.datetime.fromisoformat(r[0])
+                                for r in db.execute(
+                                    "SELECT published_at FROM jobs WHERE published_at IS NOT NULL"
+                                )
+                            ]
+                            ready = (
+                                bool(
+                                    db.execute(
+                                        "SELECT 1 FROM jobs WHERE approved=1 AND status IN ('rendered','container_created')"
+                                    ).fetchone()
+                                )
+                                and not db.execute(
+                                    "SELECT 1 FROM jobs WHERE status IN ('publish_unknown','container_submitting')"
+                                ).fetchone()
+                            )
+                            due = deadline(config(), published=published, ready=ready)
                         timeout = max(
                             0, (due - dt.datetime.now(dt.timezone.utc)).total_seconds()
                         )

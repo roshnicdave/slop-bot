@@ -219,6 +219,7 @@ def snapshot(db):
             "timezone": cfg.get("timezone"),
             "slots": cfg.get("slots"),
             "posts_per_day": cfg.get("posts_per_day"),
+            **publication_schedule(db, cfg),
         },
         "instagram_access": {k: auth.get(k) for k in ("valid", "reason", "checked_at")},
         "generation_enabled": cfg.get("generation_enabled"),
@@ -234,4 +235,22 @@ def snapshot(db):
             k: last_post.get(k)
             for k in ("id", "question", "explanation", "source_url", "family")
         },
+    }
+
+
+def publication_schedule(db, cfg):
+    import datetime as dt
+    from .schedule import next_post_at
+
+    published = [
+        dt.datetime.fromisoformat(r[0])
+        for r in db.execute(
+            "SELECT published_at FROM jobs WHERE published_at IS NOT NULL"
+        )
+    ]
+    due = next_post_at(cfg, published)
+    return {
+        "next_post_at": due.isoformat() if due else None,
+        "min_post_spacing_minutes": cfg.get("min_post_spacing_minutes", 360),
+        "catchup": "Unfilled posts remain due today after recovery; daily quota and spacing still apply.",
     }

@@ -54,6 +54,7 @@ def craft(db, job, p, research):
                         "editorial_hypotheses": research.get("ideas", [])[:2],
                         "hook_strategy": p.get("hook_strategy"),
                         "operator_feedback": feedback,
+                        "previous_review": research.get("editorial_feedback"),
                     }
                 ),
             },
@@ -105,3 +106,17 @@ def craft(db, job, p, research):
     if len(p["intro"]) + len(p["outro"]) > 600:
         raise ValueError("Creative narration exceeds quota profile")
     return p
+
+
+def review_opening(db, job, p, research):
+    """One free rewrite before discarding a draft; facts and gates stay intact."""
+    from .quality import review
+
+    quality = review(db, job, p)
+    if quality["passed"]:
+        return p, quality
+    prior = quality["editorial"]
+    p = craft(db, job + ":rewrite", p, {**research, "editorial_feedback": prior})
+    quality = review(db, job + ":rewrite", p)
+    quality["opening_rewritten"] = True
+    return p, quality

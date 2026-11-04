@@ -43,20 +43,26 @@ def findings(db, cfg, clock=None, services=None):
             )
     if enabled and cfg.get("publishing_enabled"):
         local = clock.astimezone(ZoneInfo(cfg["timezone"]))
-        for slot in cfg["slots"][: cfg["posts_per_day"]]:
+        published = [
+            dt.datetime.fromisoformat(r[0])
+            for r in db.execute(
+                "SELECT published_at FROM jobs WHERE published_at IS NOT NULL"
+            )
+        ]
+        completed = sum(
+            p.astimezone(local.tzinfo).date() == local.date() for p in published
+        )
+        from .schedule import next_post_at
+
+        next_due = next_post_at(cfg, published, clock)
+        for index, slot in enumerate(cfg["slots"][: cfg["posts_per_day"]]):
+            if index < completed or (next_due and clock < next_due):
+                continue
             hour, minute = map(int, slot.split(":"))
             due = local.replace(hour=hour, minute=minute, second=0, microsecond=0)
             if (local - due).total_seconds() < 3600:
                 continue
-            end = due + dt.timedelta(hours=1)
-            posted = any(
-                due <= dt.datetime.fromisoformat(r[0]).astimezone(local.tzinfo) < end
-                for r in db.execute(
-                    "SELECT published_at FROM jobs WHERE published_at IS NOT NULL"
-                )
-            )
-            if not posted:
-                issues.append({"kind": "missed_post", "slot": due.isoformat()})
+            issues.append({"kind": "missed_post", "slot": due.isoformat()})
     for row in db.execute(
         "SELECT component,phase,message FROM incidents WHERE resolved IS NULL"
     ):

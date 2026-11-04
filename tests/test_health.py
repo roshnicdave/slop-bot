@@ -43,6 +43,22 @@ class HealthTests(unittest.TestCase):
         self.cfg["emergency_pause"] = True
         self.assertEqual(findings(self.db, self.cfg), [])
 
+    def test_caught_up_posts_clear_missed_slot_and_spacing_is_not_an_outage(self):
+        from cyberquiz.store import new_job
+
+        job = new_job(self.db, "catchup")
+        self.db.execute(
+            "UPDATE jobs SET status='published',published_at=? WHERE id=?",
+            (
+                "2026-11-04T16:00:00+00:00",
+                job,
+            ),
+        )
+        self.db.commit()
+        clock = dt.datetime(2026, 11, 4, 21, 0, tzinfo=dt.timezone.utc)
+        issues = findings(self.db, self.cfg, clock)
+        self.assertNotIn("missed_post", [i["kind"] for i in issues])
+
     def test_repeated_health_state_does_not_spam_and_recovery_is_not_post(self):
         with (
             patch("cyberquiz.health.config", return_value=self.cfg),

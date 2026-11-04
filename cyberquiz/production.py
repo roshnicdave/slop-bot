@@ -54,9 +54,9 @@ def _make(db, slot=None, scene_key=None, attempt=0):
         db.execute("UPDATE jobs SET plan=? WHERE id=?", (json.dumps(p), ident))
         db.commit()
         novelty.record(db, ident, p)
-        from .quality import review
+        from .editorial import review_opening
 
-        quality = review(db, ident, p)
+        p, quality = review_opening(db, ident, p, research)
         (folder / "quality.json").write_text(json.dumps(quality, indent=2))
         p["quality"] = quality
         (folder / "plan.json").write_text(json.dumps(p, indent=2))

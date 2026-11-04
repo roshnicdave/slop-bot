@@ -5,10 +5,28 @@ from cyberquiz.quality import review
 
 
 class PuzzleQualityTests(unittest.TestCase):
+    def test_rejected_opening_has_one_rewrite_without_relaxing_review(self):
+        from cyberquiz.editorial import review_opening
+
+        p = plan(vlan(), {}, "test")
+        held = {"passed": False, "editorial": {"issues": ["Opening is unclear"]}}
+        with (
+            patch("cyberquiz.quality.review", side_effect=[held, held.copy()]) as check,
+            patch("cyberquiz.editorial.craft", return_value=p) as rewrite,
+        ):
+            _, result = review_opening(None, "test", p, {})
+            self.assertFalse(result["passed"])
+            self.assertTrue(result["opening_rewritten"])
+            self.assertEqual(check.call_count, 2)
+            rewrite.assert_called_once()
+            self.assertEqual(
+                rewrite.call_args.args[3]["editorial_feedback"], held["editorial"]
+            )
+
     def evaluate(self, **changes):
         p = plan(vlan(), {}, "test")
         solver = {
-            "answer_index": p["correct"],
+            "answer_text": p["answer"],
             "ambiguous": False,
             "clear_question": True,
             "issues": [],
@@ -22,11 +40,17 @@ class PuzzleQualityTests(unittest.TestCase):
         return result, model.call_args.args[2]
 
     def test_generic_pass_cannot_bypass_actual_solution(self):
-        self.assertFalse(self.evaluate(answer_index=None)[0]["passed"])
+        self.assertFalse(self.evaluate(answer_text=None)[0]["passed"])
+
+    def test_solver_must_choose_exact_option_text_instead_of_inventing_index(self):
+        self.assertTrue(self.evaluate(answer_index=999)[0]["passed"])
+        self.assertFalse(
+            self.evaluate(answer_text="Some other interpretation")[0]["passed"]
+        )
 
     def test_wrong_solution_or_ambiguity_prevents_approval(self):
         for change in (
-            {"answer_index": 99},
+            {"answer_text": "Wrong cable"},
             {"ambiguous": True},
             {"clear_question": False},
             {"clear_question": None},

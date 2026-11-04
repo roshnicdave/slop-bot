@@ -78,6 +78,18 @@ requests explicitly select JSON output.
 A known, approved Meta container continues processing beyond its original posting
 window. Its existing identity is reused; unknown submissions remain blocked.
 
+Posting times are due times, not expiring windows. The scheduler counts confirmed
+publications in the configured local day and catches up an unfilled post as soon
+as a reviewed Reel is ready. It retains the daily quota and configurable spacing
+(six hours by default), shifting the later post when recovery requires it. The
+worker wakes at that adjusted deadline; it does not poll an empty queue every
+minute. Telegram's live context exposes the adjusted next publication time.
+Ready posts run before research and metrics collection; metrics failures cannot
+discard a due post. Refill uses the same bounded readiness path at all times.
+Rejected openings get one free rewrite and full independent review before moving
+to another concept. The solver selects exact option text, which code maps to its
+index; it sees displayed device labels and values without the hidden answer key.
+
 Editorial approval separately checks answer leakage, required inference and plausible
 alternatives across the opening title, diagram and narration. Hidden assumptions do
 not resolve ambiguity in the visible puzzle. A generic model pass without those

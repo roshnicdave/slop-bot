@@ -44,6 +44,17 @@ class DiagramTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "No technical visual"):
             layout(p)
 
+    def test_solver_knows_which_devices_have_the_displayed_addresses(self):
+        scene = next(s for s in bank() if s["key"] == "duplicate-ip")
+        diagram = evidence(scene)
+        self.assertEqual(
+            diagram["nodes"][0],
+            {"type": "PC", "label": "PC A", "ip": scene["model"]["a"]},
+        )
+        self.assertEqual(diagram["nodes"][1]["ip"], scene["model"]["b"])
+        self.assertIn("same VLAN", diagram["connection"])
+        self.assertNotIn("expected", diagram["data"])
+
     def test_cache_visual_reads_verified_model_not_legacy_text_panel(self):
         from cyberquiz.lab_visual import label
 

@@ -10,6 +10,7 @@ class PuzzleQualityTests(unittest.TestCase):
         solver = {
             "answer_index": p["correct"],
             "ambiguous": False,
+            "clear_question": True,
             "issues": [],
             "title_gives_answer": False,
             "diagram_needed": True,
@@ -27,6 +28,8 @@ class PuzzleQualityTests(unittest.TestCase):
         for change in (
             {"answer_index": 99},
             {"ambiguous": True},
+            {"clear_question": False},
+            {"clear_question": None},
             {"title_gives_answer": True},
             {"diagram_needed": False},
             {"plausible_distractors": False},
@@ -49,3 +52,18 @@ class PuzzleQualityTests(unittest.TestCase):
         with patch("cyberquiz.quality.cloudflare.llm") as model:
             self.assertFalse(review(None, "test", p)["passed"])
             model.assert_not_called()
+
+    def test_statement_only_opening_cannot_reach_the_reviewer(self):
+        p = plan(vlan(), {}, "test")
+        p["question"] = "Pool addresses all leased\nNew client gets no offer"
+        p["intro"] = p["question"].replace("\n", " ")
+        with patch("cyberquiz.quality.cloudflare.llm") as model:
+            with self.assertRaisesRegex(ValueError, "ask a question"):
+                review(None, "test", p)
+            model.assert_not_called()
+
+    def test_visible_question_with_statement_narration_is_rejected(self):
+        p = plan(vlan(), {}, "test")
+        p["intro"] = "Both links are green."
+        with self.assertRaisesRegex(ValueError, "narration"):
+            review(None, "test", p)

@@ -280,7 +280,7 @@ def plan(scene, creative, job):
     )
     from .speech import speak
 
-    p["intro"] = speak(p["narration_question"])
+    p["intro"] = speak(p["question"].replace("\n", " "))
     p["reveal_voice"] = "ABCD"[p["correct"]] + ". " + speak(p["explanation"])
     p["fix_voice"] = speak(p["fix"])
     p["outro"] = p["reveal_voice"] + " " + p["fix_voice"]

@@ -153,3 +153,43 @@ class QueuedVisualUpgradeTests(unittest.TestCase):
                 "known",
             )
             db.close()
+
+    def test_old_approval_cannot_publish_a_statement_as_a_quiz(self):
+        from cyberquiz.instagram import publish
+
+        with tempfile.TemporaryDirectory() as temp:
+            db = connect(Path(temp) / "state.sqlite")
+            job = new_job(db, "statement")
+            p = plan(next(s for s in bank() if s["key"] == "pool-exhausted"), {}, job)
+            p["question"] = "Pool addresses all leased\nNew client gets no offer"
+            p["intro"] = p["question"].replace("\n", " ")
+            p["quality"] = {
+                "passed": True,
+                "artifact": {"decode_ok": True, "diagram_renderer_version": VERSION},
+            }
+            db.execute(
+                "UPDATE jobs SET plan=?,status='rendered',approved=1 WHERE id=?",
+                (json.dumps(p), job),
+            )
+            db.commit()
+            with (
+                patch(
+                    "cyberquiz.instagram.config",
+                    return_value={
+                        "publishing_enabled": True,
+                        "public_media_base_url": "https://example.com/media",
+                    },
+                ),
+                patch(
+                    "cyberquiz.instagram.secrets",
+                    return_value={
+                        "IG_ACCESS_TOKEN": "hidden",
+                        "IG_USER_ID": "test",
+                    },
+                ),
+                patch("cyberquiz.instagram.graph") as graph,
+            ):
+                with self.assertRaisesRegex(ValueError, "ask a question"):
+                    publish(db, job, immediate=True)
+                graph.assert_not_called()
+            db.close()

@@ -408,6 +408,21 @@ class AutonomyTests(unittest.TestCase):
 
 
 class ProductionRegressionTests(unittest.TestCase):
+    def test_statement_hook_keeps_the_verified_question_and_spoken_question(self):
+        from cyberquiz.editorial import craft
+        from cyberquiz.scenarios import plan, vlan
+
+        original = plan(vlan(), {}, "test")
+        with patch(
+            "cyberquiz.editorial.cloudflare.llm",
+            return_value={
+                "hook_lines": ["Both links are green.", "Different VLANs block ping."]
+            },
+        ):
+            p = craft(None, "test", original.copy(), {"ideas": []})
+        self.assertEqual(p["question"], original["question"])
+        self.assertTrue(p["intro"].endswith("?"))
+
     def test_model_linebreaks_cannot_break_hook_layout(self):
         from cyberquiz.editorial import craft
         from cyberquiz.scenarios import plan, vlan

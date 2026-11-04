@@ -89,6 +89,9 @@ discard a due post. Refill uses the same bounded readiness path at all times.
 Rejected openings get one free rewrite and full independent review before moving
 to another concept. The solver selects exact option text, which code maps to its
 index; it sees displayed device labels and values without the hidden answer key.
+An independent title-only check rejects restated answer choices before the solver
+sees the diagram. Creative opening drafts receive the verified question rather
+than the answer key or diagram values, including on a rewrite.
 
 Editorial approval separately checks answer leakage, required inference and plausible
 alternatives across the opening title, diagram and narration. Hidden assumptions do

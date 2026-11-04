@@ -15,18 +15,10 @@ def safe_hook(value):
 
 
 def craft(db, job, p, research):
-    brief = {
-        k: p[k]
-        for k in (
-            "question",
-            "clue",
-            "diagram",
-            "answer",
-            "distractors",
-            "explanation",
-            "fix",
-        )
-    }
+    # Creative copy needs the verified symptom/question, not the answer key or
+    # diagram values that belong in the picture. Preserve this across rewrites.
+    p.setdefault("verified_question", p["question"])
+    brief = {"question": p["verified_question"], "clue": p["clue"]}
     feedback = []
     if (
         db is not None

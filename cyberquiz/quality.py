@@ -5,7 +5,7 @@ import re
 from . import scenarios, cloudflare
 from .store import now
 
-REVIEW_VERSION = 8
+REVIEW_VERSION = 9
 
 
 def layout(p):
@@ -62,6 +62,48 @@ def review(db, job, p):
             "checked_at": now(),
             "review_version": REVIEW_VERSION,
         }
+    title = cloudflare.llm(
+        db,
+        job + ":title-review",
+        [
+            {
+                "role": "system",
+                "content": "Check whether the opening directly states or paraphrases an answer choice. "
+                "Do not solve the puzzle, infer a cause from symptoms, or guess the correct answer. "
+                "You cannot see the diagram or answer key. Return only JSON "
+                "{restates_option:string copied exactly from an option or null,reasoning:string}. "
+                "A question can give away the answer in its premise. Distinguish an observed symptom "
+                "from a statement of its underlying diagnosis. Return null when no choice is stated.",
+            },
+            {
+                "role": "user",
+                "content": json.dumps(
+                    {
+                        "opening": p["question"],
+                        "narration": p["intro"],
+                        "options": p["options"],
+                    }
+                ),
+            },
+        ],
+        kind="editorial",
+        max_tokens=160,
+        model=cloudflare.REVIEW,
+    )
+    if "restates_option" not in title or title["restates_option"] is not None:
+        return {
+            "passed": False,
+            "technical_check": True,
+            "layout_check": True,
+            "editorial": {
+                "pass": False,
+                "issues": ["Opening restates an answer choice"],
+                "title_review": title,
+                "puzzle_checks": {"answer_not_given": False},
+            },
+            "checked_at": now(),
+            "review_version": REVIEW_VERSION,
+        }
     # Solve the opening without the answer key or later explanation. This avoids
     # a critic inventing objections after being shown the answer it should assess.
     from .lab_visual import evidence
@@ -101,7 +143,12 @@ def review(db, job, p):
         and solved.get("issues") == []
         and all(checks.values())
     )
-    critique = {**solved, "pass": approved, "puzzle_checks": checks}
+    critique = {
+        **solved,
+        "pass": approved,
+        "puzzle_checks": checks,
+        "title_review": title,
+    }
 
     return {
         "passed": approved,

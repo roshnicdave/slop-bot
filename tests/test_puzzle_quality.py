@@ -35,7 +35,15 @@ class PuzzleQualityTests(unittest.TestCase):
             "plausible_distractors": True,
         }
         solver.update(changes)
-        with patch("cyberquiz.quality.cloudflare.llm", return_value=solver) as model:
+
+        def respond(db, operation, messages, **kwargs):
+            return (
+                {"restates_option": None}
+                if operation.endswith(":title-review")
+                else solver
+            )
+
+        with patch("cyberquiz.quality.cloudflare.llm", side_effect=respond) as model:
             result = review(None, "test", p)
         return result, model.call_args.args[2]
 
@@ -76,6 +84,22 @@ class PuzzleQualityTests(unittest.TestCase):
         with patch("cyberquiz.quality.cloudflare.llm") as model:
             self.assertFalse(review(None, "test", p)["passed"])
             model.assert_not_called()
+
+    def test_blind_title_review_catches_paraphrased_answer_before_solving(self):
+        p = plan(vlan(), {}, "test")
+        p["question"] = "The ports have separate VLAN IDs.\nWhy does ping fail?"
+        with patch(
+            "cyberquiz.quality.cloudflare.llm",
+            return_value={
+                "restates_option": p["answer"],
+                "reasoning": "The premise states the diagnosis",
+            },
+        ) as model:
+            self.assertFalse(review(None, "test", p)["passed"])
+            model.assert_called_once()
+            candidate = model.call_args.args[2][1]["content"]
+            self.assertNotIn('"diagram"', candidate)
+            self.assertNotIn('"correct"', candidate)
 
     def test_statement_only_opening_cannot_reach_the_reviewer(self):
         p = plan(vlan(), {}, "test")

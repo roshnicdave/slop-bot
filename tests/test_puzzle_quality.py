@@ -70,6 +70,13 @@ class PuzzleQualityTests(unittest.TestCase):
         ):
             self.assertFalse(self.evaluate(**change)[0]["passed"])
 
+    def test_answer_disagreement_returns_actionable_revision_feedback(self):
+        result, _ = self.evaluate(answer_text="Wrong cable")
+        issues = " ".join(result["editorial"]["issues"])
+        self.assertIn("Wrong cable", issues)
+        self.assertIn("intended answer", issues)
+        self.assertIn("overlapping correct choices", issues)
+
     def test_valid_puzzle_passes_independent_solution(self):
         result, messages = self.evaluate()
         self.assertTrue(result["passed"])

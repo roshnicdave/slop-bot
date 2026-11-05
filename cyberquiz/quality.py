@@ -163,8 +163,25 @@ def review(db, job, p):
         and solved.get("ambiguous") is False
         and all(checks.values())
     )
+    issues = list(solved.get("issues") or [])
+    if solved["answer_index"] != p["correct"]:
+        issues.append(
+            "The independent solver selected "
+            + repr(answer_text)
+            + " instead of the intended answer "
+            + repr(p["answer"])
+            + ". Resolve the disagreement: check the evidence and remove overlapping correct choices."
+        )
+    for name, passed in checks.items():
+        if not passed:
+            issues.append("Failed puzzle check: " + name)
+    if solved.get("ambiguous") is not False:
+        issues.append(
+            "The visible evidence must distinguish exactly one correct choice."
+        )
     critique = {
         **solved,
+        "issues": issues,
         "pass": approved,
         "puzzle_checks": checks,
         "title_review": title,

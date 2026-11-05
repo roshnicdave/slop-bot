@@ -483,6 +483,7 @@ def prepare_candidate(
         design_version=3,
         palette=cfg.get("palette", "ink"),
         narration_speed=cfg.get("narration_speed", 1.08),
+        hook_strategy=cfg.get("hook_strategy", "short diagnostic contrast"),
         sound_cues=True,
     )
     prepared = craft(db, operation + ":reserve", prepared, research)
@@ -669,6 +670,7 @@ def _candidate(db, research, *, excluded=()):
                             "previous_objectives": history,
                             "curriculum_goals": objectives,
                             "operator_content_preferences": notes,
+                            "editorial_hypotheses": research.get("ideas", [])[:2],
                         }
                     ),
                 },
@@ -735,6 +737,10 @@ def _candidate(db, research, *, excluded=()):
                             "curriculum_goals": objectives,
                             "approved_style_examples": style_examples(db),
                             "operator_content_preferences": notes,
+                            "learned_hook_policy": cfg.get(
+                                "hook_strategy", "short diagnostic contrast"
+                            ),
+                            "editorial_hypotheses": research.get("ideas", [])[:2],
                         },
                         separators=(",", ":"),
                     ),

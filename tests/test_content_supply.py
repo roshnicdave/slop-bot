@@ -294,6 +294,10 @@ class ContentSupplyTests(unittest.TestCase):
             network.assert_not_called()
 
     def test_prepared_text_can_produce_media_when_optional_planner_is_down(self):
+        _, reviewed, rewritten = self.produce_prepared()
+        self.assertEqual((reviewed, rewritten), (0, 0))
+
+    def produce_prepared(self, assignment=None, rewrite=None):
         scene = self.generated()
         cfg = {"account": "", "require_approval": False, "voice_provider": "cloudflare"}
         from cyberquiz.production import make
@@ -308,7 +312,12 @@ class ContentSupplyTests(unittest.TestCase):
             ),
             patch("cyberquiz.production.scout.choose", return_value=scene),
             patch("cyberquiz.experiments.ensure"),
-            patch("cyberquiz.learning.experiment", return_value={}),
+            patch("cyberquiz.learning.experiment", return_value=assignment or {}),
+            patch("cyberquiz.editorial.craft", side_effect=rewrite) as craft,
+            patch(
+                "cyberquiz.editorial.review_opening",
+                side_effect=lambda db, job, p, r: (p, p["quality"]),
+            ) as review,
             patch("cyberquiz.cloudflare.available", return_value=True),
             patch("cyberquiz.cloudflare.voice") as voice,
             patch("cyberquiz.cloudflare.llm") as llm,
@@ -326,6 +335,61 @@ class ContentSupplyTests(unittest.TestCase):
             self.db.execute("SELECT status FROM source_attempts").fetchone()[0],
             "claimed",
         )
+        saved = json.loads(
+            self.db.execute("SELECT plan FROM jobs WHERE id=?", (job,)).fetchone()[0]
+        )
+        return saved, review.call_count, craft.call_count
+
+    def test_changed_experimental_hook_requires_a_fresh_blind_review(self):
+        assignment = {
+            "hook_strategy": "Start with the browser symptom",
+            "experiment": {
+                "id": "hook",
+                "parameter": "hook_strategy",
+                "arm": "challenger",
+            },
+        }
+
+        def rewrite(db, job, p, research):
+            self.assertIn("editorial_feedback", research)
+            p["question"] = (
+                "A padlock appears in the browser.\nWhich hop carries cleartext?"
+            )
+            p["intro"] = p["question"].replace("\n", " ")
+            return p
+
+        saved, reviewed, rewritten = self.produce_prepared(assignment, rewrite)
+        self.assertEqual((reviewed, rewritten), (1, 1))
+        self.assertEqual(saved["experiment"]["arm"], "challenger")
+
+    def test_unchanged_hook_is_not_counted_as_an_applied_experiment(self):
+        assignment = {
+            "hook_strategy": "Start with the browser symptom",
+            "experiment": {
+                "id": "hook",
+                "parameter": "hook_strategy",
+                "arm": "challenger",
+            },
+        }
+        saved, reviewed, rewritten = self.produce_prepared(
+            assignment, lambda db, job, p, research: p
+        )
+        self.assertNotIn("experiment", saved)
+        self.assertEqual((reviewed, rewritten), (0, 1))
+
+    def test_pacing_assignment_preserves_cached_text_review(self):
+        assignment = {
+            "decision_seconds": 3,
+            "experiment": {
+                "id": "pacing",
+                "parameter": "decision_seconds",
+                "arm": "challenger",
+            },
+        }
+        saved, reviewed, rewritten = self.produce_prepared(assignment)
+        self.assertEqual(saved["decision_seconds"], 3)
+        self.assertEqual(saved["experiment"]["id"], "pacing")
+        self.assertEqual((reviewed, rewritten), (0, 0))
 
     def test_old_queued_double_question_is_held_before_publication(self):
         p = plan(vlan(), {}, "test")

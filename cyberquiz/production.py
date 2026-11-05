@@ -86,14 +86,34 @@ def _make(db, slot=None, scene_key=None, attempt=0):
         p["sound_cues"] = True
         p["narration_speed"] = cfg.get("narration_speed", 1.08)
         p["palette"] = cfg.get("palette", "ink")
+        authored_hook = p.get("hook_strategy", "short diagnostic contrast")
         p["hook_strategy"] = cfg.get("hook_strategy", "short diagnostic contrast")
         from .learning import experiment
 
         p.update(experiment(db, p, ident))
         from .editorial import craft
 
-        if not prepared:
-            p = craft(db, ident, p, research)
+        hook_changed = p.get("hook_strategy") != authored_hook
+        craft_research = research
+        if hook_changed:
+            craft_research = {
+                **research,
+                "editorial_feedback": {
+                    "issues": [
+                        "Apply the assigned hook strategy while preserving the verified scenario."
+                    ]
+                },
+            }
+        if not prepared or hook_changed:
+            original_question = p["question"]
+            p = craft(db, ident, p, craft_research)
+            if p["question"] != original_question:
+                prepared = False  # A changed opening needs a fresh blind review.
+            elif hook_changed:
+                # An unchanged title is not evidence that a challenger was applied.
+                if p.get("experiment", {}).get("parameter") == "hook_strategy":
+                    p.pop("experiment", None)
+                p["hook_strategy"] = authored_hook
         (folder / "plan.json").write_text(json.dumps(p, indent=2))
         db.execute("UPDATE jobs SET plan=? WHERE id=?", (json.dumps(p), ident))
         db.commit()

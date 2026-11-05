@@ -15,6 +15,8 @@ An AWS-hosted agent for cybersecurity and networking quiz Reels, controlled thro
 
 `novelty.py` maintains text history independently of video retention. Useful lessons can return as spaced practice: the default lesson gap is eight published Reels, with a separate 50-Reel window for an identical practice case. Both are configurable. Changed wording alone does not bypass the short lesson gap, and pending work is checked too. Primary-source review and coverage ranking encourage breadth; semantic duplicate detection remains fallible.
 
+Current-source selection receives publication dates and source types, so evergreen documentation is distinct from dated news. A relevant industry case can remain untagged when no exam objective fits; certification labels and hashtags require the exam path. Both paths retain the same source, diagram, unique-answer and blind-solver gates. See [the curriculum review](CONTENT_RESEARCH.md) for topic scope and the announced CCNA transition.
+
 `experiments.py` lets an LLM propose a new pacing or hook hypothesis from feedback and results. One factor is tested at a time. Each Reel records its assignment. Adoption requires at least ten comparable posts per arm and a positive bootstrap interval on shares per reached audience at approximately 72 hours. Inconclusive results stay inconclusive. This updates a saved editorial policy; it does not train model weights or permit arbitrary code execution.
 
 The technical diagram, dark palette, Inter typography, no-subheading rule, short hook and “Comment your answer” prompt are operator requirements. The agent can explore content choices within those requirements, not silently discard them.

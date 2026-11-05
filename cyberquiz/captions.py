@@ -7,14 +7,15 @@ def hashtags(p):
     ).lower()
     tags = ["#CyberSecurity", "#Networking"]
     cert = p.get("certification")
-    if cert in ("CCNA", "Network+", "Security+"):
+    exam_tags = p.get("content_scope") != "industry"
+    if exam_tags and cert in ("CCNA", "Network+", "Security+"):
         tags.insert(
             0,
             {"CCNA": "#CCNA", "Network+": "#NetworkPlus", "Security+": "#SecurityPlus"}[
                 cert
             ],
         )
-    if any(
+    if exam_tags and any(
         word in text
         for word in (
             "vlan",
@@ -30,7 +31,9 @@ def hashtags(p):
         )
     ):
         tags.append("#CCNA")
-    elif any(word in text for word in ("phishing", "tls", "firewall", "certificate")):
+    elif exam_tags and any(
+        word in text for word in ("phishing", "tls", "firewall", "certificate")
+    ):
         tags.append("#SecurityPlus")
     for keywords, tag in [
         ("dns", "#DNS"),

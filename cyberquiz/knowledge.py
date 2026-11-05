@@ -13,6 +13,9 @@ SEEDS = [
     "https://learn.microsoft.com/en-us/windows-server/networking/",
     "https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst9300/software/release/17-12/configuration_guide/vlan/b_1712_vlan_9300_cg.html",
     "https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst9300/software/release/17-12/configuration_guide/rtng/b_1712_rtng_9300_cg.html",
+    "https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst9300/software/release/17-12/configuration_guide/sec/b_1712_sec_9300_cg.html",
+    "https://www.cisco.com/c/en/us/td/docs/wireless/controller/9800/17-12/config-guide/b_wl_17_12_cg.html",
+    "https://developers.cloudflare.com/cloudflare-one/",
 ]
 
 
@@ -156,7 +159,7 @@ def refresh(db):
                     )
                     or (
                         p.hostname == "developers.cloudflare.com"
-                        and p.path.startswith("/1.1.1.1/")
+                        and p.path.startswith(("/1.1.1.1/", "/cloudflare-one/"))
                     )
                     or (
                         p.hostname == "learn.microsoft.com"
@@ -164,7 +167,12 @@ def refresh(db):
                     )
                     or (
                         p.hostname == "www.cisco.com"
-                        and p.path.startswith("/c/en/us/td/docs/switches/lan/")
+                        and p.path.startswith(
+                            (
+                                "/c/en/us/td/docs/switches/lan/",
+                                "/c/en/us/td/docs/wireless/",
+                            )
+                        )
                     )
                 )
                 if not allowed or not title:

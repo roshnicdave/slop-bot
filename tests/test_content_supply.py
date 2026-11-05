@@ -127,7 +127,7 @@ class ContentSupplyTests(unittest.TestCase):
             "objective_id": "Security+:3.2",
         }
 
-    def generated(self, reject_first=False):
+    def generated(self, reject_first=False, industry=False):
         source = {
             "excerpt": "TLS protects the client leg. HTTP on the second leg remains unencrypted.",
             "passages": [
@@ -150,7 +150,11 @@ class ContentSupplyTests(unittest.TestCase):
         from cyberquiz.quality import REVIEW_VERSION
 
         checks = {"passed": True, "review_version": REVIEW_VERSION}
-        responses = [{"article_ids": [0]}, self.source_draft(), audit]
+        draft = self.source_draft()
+        if industry:
+            draft["objective_id"] = None
+            audit["exam_relevant"] = False
+        responses = [{"article_ids": [0]}, draft, audit]
         if reject_first:
             responses = [
                 {"article_ids": [0]},
@@ -182,6 +186,8 @@ class ContentSupplyTests(unittest.TestCase):
                         "url": "https://developers.cloudflare.com/test",
                         "title": "TLS connections",
                         "source": "Cloudflare",
+                        "published": "2026-11-05T00:00:00+00:00",
+                        "evidence_type": "primary_source_topic",
                     }
                 ],
             ),
@@ -200,6 +206,84 @@ class ContentSupplyTests(unittest.TestCase):
             voice.assert_not_called()
         self.assertIsNotNone(scene)
         return scene
+
+    def test_industry_case_does_not_need_a_forced_exam_alignment(self):
+        from cyberquiz.captions import hashtags
+
+        scene = self.generated(industry=True)
+        self.assertEqual(scene["content_scope"], "industry")
+        self.assertNotIn("certification", scene)
+        self.assertFalse(scene["provenance"]["review"]["exam_relevant"])
+        self.assertTrue(scene["ready_plan"]["quality"]["passed"])
+        self.assertNotIn("#CCNA", hashtags(scene))
+        self.assertNotIn("#SecurityPlus", hashtags(scene))
+        scene["certification"] = "CCNA"
+        with self.assertRaisesRegex(ValueError, "cannot claim exam alignment"):
+            discovery.validate(scene)
+
+    def test_exam_claim_still_requires_positive_exam_review(self):
+        scene = self.generated()
+        self.assertEqual(scene["content_scope"], "exam")
+        self.assertEqual(scene["provenance"]["published"], "2026-11-05T00:00:00+00:00")
+        self.assertEqual(scene["provenance"]["source_type"], "primary_source_topic")
+        scene["provenance"]["review"]["exam_relevant"] = False
+        with self.assertRaisesRegex(ValueError, "factual review failed"):
+            discovery.validate(scene)
+
+    def test_unknown_objective_is_not_silently_reclassified_as_industry(self):
+        draft = self.source_draft()
+        draft["objective_id"] = "invented:99.9"
+        with self.assertRaisesRegex(ValueError, "supported exam objective"):
+            discovery.compile_scene(
+                draft,
+                {"passages": [{"id": 7, "text": "Real passage"}]},
+                {"url": "https://www.cisco.com/test", "source": "Cisco"},
+                [],
+                "test",
+            )
+
+    def test_large_ranking_context_keeps_news_dates_and_documentation_separate(self):
+        articles = [
+            {
+                "id": i,
+                "title": "新" * 90,
+                "published": None,
+                "source_type": "primary_documentation",
+            }
+            for i in range(60)
+        ]
+        articles.append(
+            {
+                "id": 60,
+                "title": "Recent advisory",
+                "published": "2026-11-05",
+                "source_type": "primary_source_topic",
+            }
+        )
+        view = {
+            "articles": articles,
+            "curriculum_goals": [{"title": "新" * 180}] * 24,
+            "previous_objectives": [{"claim": "新" * 100}] * 8,
+            "operator_content_preferences": ["新" * 180] * 8,
+        }
+        messages = discovery.ranking_messages("Primary source editor", view)
+        self.assertLessEqual(
+            len(json.dumps(messages, ensure_ascii=False).encode()) + 512, 16000
+        )
+        actual = json.loads(messages[1]["content"])["articles"]
+        self.assertTrue(
+            any(
+                a["source_type"] == "primary_documentation" and a["published"] is None
+                for a in actual
+            )
+        )
+        self.assertTrue(
+            any(
+                a["source_type"] == "primary_source_topic"
+                and a["published"] == "2026-11-05"
+                for a in actual
+            )
+        )
 
     def test_semantic_rejection_gets_a_complete_case_revision_and_new_audit(self):
         scene = self.generated(reject_first=True)

@@ -43,7 +43,7 @@ def gather(db):
                     age = (
                         dt.datetime.now(dt.timezone.utc) - published
                     ).total_seconds() / 86400
-                    if not 0 <= age <= 14:
+                    if not 0 <= age <= config().get("source_max_age_days", 14):
                         continue
                 except (TypeError, ValueError):
                     continue

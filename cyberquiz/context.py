@@ -58,6 +58,7 @@ def read(db, resource):
                         "options",
                         "answer",
                         "source_url",
+                        "content_scope",
                     )
                 }
             )
@@ -213,6 +214,7 @@ def read(db, resource):
                             "certification",
                             "exam_objective",
                             "source_url",
+                            "content_scope",
                         )
                     }
                 )

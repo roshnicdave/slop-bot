@@ -283,9 +283,13 @@ def compile_scene(draft, source, article, objectives, ident):
     from .visual import F
     from .render import wrap
 
-    draft["question"] = "\n".join(
-        wrap(" ".join(draft.pop("question_lines", [])), F(33, True), 590)
-    )
+    lines = draft.pop("question_lines", [])
+    if not (
+        1 <= len(lines) <= 2
+        and all(F(33, True).getlength(line) <= 590 for line in lines)
+    ):
+        lines = wrap(" ".join(lines), F(33, True), 590)
+    draft["question"] = "\n".join(lines)
     fields = (
         "topic",
         "core_claim",
@@ -617,6 +621,19 @@ def _candidate(db, research, *, excluded=()):
     unique = {r["url"]: r for r in records}
     records = list(unique.values())
     audience = cfg.get("content_audience", AUDIENCE)
+    notes = []
+    if db.execute("SELECT 1 FROM sqlite_master WHERE name='preferences'").fetchone():
+        notes = [
+            r[0][:180]
+            for r in db.execute("SELECT text FROM preferences ORDER BY id DESC LIMIT 8")
+        ]
+    focus = (
+        db.execute("SELECT value FROM control WHERE key='topic_preference'").fetchone()
+        if db.execute("SELECT 1 FROM sqlite_master WHERE name='control'").fetchone()
+        else None
+    )
+    if focus:
+        notes.insert(0, focus[0][:300])
     # Rank document titles for this audience, not by vendor news recency alone.
     selection = hashlib.sha256(
         json.dumps([r["url"] for r in records]).encode()
@@ -642,6 +659,7 @@ def _candidate(db, research, *, excluded=()):
                             ],
                             "previous_objectives": history,
                             "curriculum_goals": objectives,
+                            "operator_content_preferences": notes,
                         }
                     ),
                 },
@@ -707,6 +725,7 @@ def _candidate(db, research, *, excluded=()):
                             "previous_objectives": history,
                             "curriculum_goals": objectives,
                             "approved_style_examples": style_examples(db),
+                            "operator_content_preferences": notes,
                         },
                         separators=(",", ":"),
                     ),

@@ -253,6 +253,9 @@ class ContentSupplyTests(unittest.TestCase):
 
     def test_cited_passage_ids_are_copied_and_derived_answers_are_allowed(self):
         scene = self.generated()
+        self.assertEqual(
+            scene["question"].split("\n"), self.source_draft()["question_lines"]
+        )
         self.assertNotIn(
             scene["answer"].lower(), scene["provenance"]["quotes"][0].lower()
         )

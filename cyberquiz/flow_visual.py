@@ -159,4 +159,9 @@ def draw(d, p):
                 170 if compact else 190
             ):
                 size -= 1
+            if compact and index == 2:
+                left = dx - F(size, False).getlength(detail) / 2
+                right = x + boundary(node, 1, 0)
+                if left > right + 12:
+                    d.line((right, dy + 9, left - 6, dy + 9), fill="#8fa7b4", width=1)
             text(d, detail, dx, dy, size, INK, center=True)

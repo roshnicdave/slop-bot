@@ -107,20 +107,19 @@ def video(chat, job):
 
 def notify(db, event, message):
     tables(db)
+    from .notice_policy import prepare, relevant, current_facts
+
+    prepare(db)
     db.execute(
-        "CREATE TABLE IF NOT EXISTS notice_texts(event TEXT PRIMARY KEY,facts TEXT,text TEXT,attempts INTEGER DEFAULT 0)"
-    )
-    if "next_attempt" not in {
-        r[1] for r in db.execute("PRAGMA table_info(notice_texts)")
-    }:
-        db.execute("ALTER TABLE notice_texts ADD COLUMN next_attempt TEXT")
-    db.execute(
-        "INSERT OR IGNORE INTO notice_texts(event,facts) VALUES(?,?)", (event, message)
+        "INSERT OR IGNORE INTO notice_texts(event,facts,created,state) VALUES(?,?,?,'pending')",
+        (event, message, now()),
     )
     db.commit()
-    cached = db.execute(
-        "SELECT text,attempts,next_attempt FROM notice_texts WHERE event=?", (event,)
-    ).fetchone()
+    row = db.execute("SELECT * FROM notice_texts WHERE event=?", (event,)).fetchone()
+    if not relevant(db, row):
+        return
+    message = current_facts(db, row)
+    cached = (row["text"], row["attempts"], row["next_attempt"])
     if cached[0]:
         message = cached[0]
     else:
@@ -159,6 +158,11 @@ def notify(db, event, message):
             return  # Durable facts remain pending when AI or its quota is unavailable.
         db.execute("UPDATE notice_texts SET text=? WHERE event=?", (message, event))
         db.commit()
+    # The state can change while the LLM is composing.
+    if not relevant(
+        db, db.execute("SELECT * FROM notice_texts WHERE event=?", (event,)).fetchone()
+    ):
+        return
     owner = config().get("telegram_owner_user_id")
     for row in db.execute("SELECT chat_id FROM telegram_chats").fetchall():
         chat = row[0]
@@ -184,19 +188,28 @@ def notify(db, event, message):
             )
             db.commit()
 
+    targets = [
+        r[0]
+        for r in db.execute("SELECT chat_id FROM telegram_chats")
+        if event.startswith("published:") or r[0] == owner
+    ]
+    if targets and all(
+        db.execute(
+            "SELECT 1 FROM notices WHERE event=? AND chat_id=?", (event, chat)
+        ).fetchone()
+        for chat in targets
+    ):
+        db.execute("UPDATE notice_texts SET state='delivered' WHERE event=?", (event,))
+        db.commit()
+
 
 def retry_notifications(db):
-    if not db.execute(
-        "SELECT 1 FROM sqlite_master WHERE name='notice_texts'"
-    ).fetchone():
-        return
-    if "next_attempt" not in {
-        r[1] for r in db.execute("PRAGMA table_info(notice_texts)")
-    }:
-        db.execute("ALTER TABLE notice_texts ADD COLUMN next_attempt TEXT")
-        db.commit()
+    from .notice_policy import prune
+
+    tables(db)
+    prune(db)
     for row in db.execute(
-        "SELECT event,facts FROM notice_texts WHERE text IS NULL AND (next_attempt IS NULL OR next_attempt<=?) LIMIT 2",
+        "SELECT event,facts FROM notice_texts WHERE state='pending' AND (next_attempt IS NULL OR next_attempt<=?) ORDER BY created DESC LIMIT 2",
         (now(),),
     ).fetchall():
         notify(db, row[0], row[1])

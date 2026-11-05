@@ -25,6 +25,10 @@ class HealthTests(unittest.TestCase):
         self.db.close()
         self.tmp.cleanup()
 
+    def delivered_notice(self, db, event, facts):
+        db.execute("INSERT OR IGNORE INTO notices VALUES(?,1,'sent')", (event,))
+        db.commit()
+
     def test_missed_slot_and_empty_queue_include_actual_failure(self):
         self.db.execute(
             "CREATE TABLE readiness_attempts(id INTEGER PRIMARY KEY,status TEXT,error TEXT)"
@@ -62,8 +66,19 @@ class HealthTests(unittest.TestCase):
     def test_repeated_health_state_does_not_spam_and_recovery_is_not_post(self):
         with (
             patch("cyberquiz.health.config", return_value=self.cfg),
-            patch("cyberquiz.health.findings", return_value=[{"kind": "queue_empty"}]),
-            patch("cyberquiz.telegram.notify") as notify,
+            patch(
+                "cyberquiz.health.findings",
+                return_value=[
+                    {
+                        "kind": "service_down",
+                        "service": "cyberquiz-worker",
+                        "state": "failed",
+                    }
+                ],
+            ),
+            patch(
+                "cyberquiz.telegram.notify", side_effect=self.delivered_notice
+            ) as notify,
         ):
             check(self.db)
             check(self.db)
@@ -73,9 +88,10 @@ class HealthTests(unittest.TestCase):
             patch("cyberquiz.health.findings", return_value=[]),
             patch("cyberquiz.telegram.notify") as notify,
         ):
-            check(self.db)
+            check(self.db, services={"cyberquiz-worker": "active"})
             facts = json.loads(notify.call_args.args[2])
-            self.assertEqual(facts["event"], "pipeline_recovered")
+            self.assertEqual(facts["event"], "workflow_recovered")
+            self.assertEqual(facts["scope"], "publishing")
 
     def test_worker_failure_is_visible_even_when_pipeline_paused(self):
         self.cfg["emergency_pause"] = True
@@ -119,14 +135,23 @@ class HealthTests(unittest.TestCase):
             publish.assert_not_called()
 
     def test_changing_failure_details_does_not_repeat_outage_alert(self):
+        self.cfg["publishing_enabled"] = False
         with (
             patch("cyberquiz.health.config", return_value=self.cfg),
             patch("cyberquiz.health.findings") as issues,
-            patch("cyberquiz.telegram.notify") as notify,
+            patch(
+                "cyberquiz.telegram.notify", side_effect=self.delivered_notice
+            ) as notify,
         ):
             issues.return_value = [{"kind": "queue_empty", "failure": "first"}]
             check(self.db)
+            self.assertEqual(notify.call_count, 0)
+            self.db.execute(
+                "UPDATE health_outages SET since='2020-01-01T00:00:00+00:00'"
+            )
+            self.db.commit()
             issues.return_value = [{"kind": "queue_empty", "failure": "second"}]
+            check(self.db)
             check(self.db)
             self.assertEqual(notify.call_count, 1)
 
@@ -135,28 +160,38 @@ class HealthTests(unittest.TestCase):
         with (
             patch("cyberquiz.health.config", return_value=self.cfg),
             patch("cyberquiz.health.findings") as issues,
-            patch("cyberquiz.telegram.notify") as notify,
+            patch(
+                "cyberquiz.telegram.notify", side_effect=self.delivered_notice
+            ) as notify,
         ):
             issues.return_value = [missed, {"kind": "queue_empty"}]
             check(self.db)
             issues.return_value = [missed]
+            check(self.db)
+            issues.return_value = []
             check(self.db)
             events = [
                 json.loads(call.args[2])["event"] for call in notify.call_args_list
             ]
             self.assertEqual(
                 events,
-                ["scheduled_post_missed", "pipeline_blocked", "pipeline_recovered"],
+                ["workflow_delayed", "workflow_recovered"],
             )
 
     def test_worker_tick_cannot_clear_monitor_service_failure(self):
         with (
             patch("cyberquiz.health.config", return_value=self.cfg),
             patch("cyberquiz.health.findings") as issues,
-            patch("cyberquiz.telegram.notify") as notify,
+            patch(
+                "cyberquiz.telegram.notify", side_effect=self.delivered_notice
+            ) as notify,
         ):
             issues.return_value = [
-                {"kind": "service_down", "service": "worker", "state": "failed"}
+                {
+                    "kind": "service_down",
+                    "service": "cyberquiz-worker",
+                    "state": "failed",
+                }
             ]
             check(self.db, services={"worker": "failed"})
             issues.return_value = []

@@ -81,6 +81,12 @@ class ReadinessTests(unittest.TestCase):
     def test_post_notifications_reach_both_once_other_alerts_owner_only(self):
         tables(self.db)
         self.db.executemany("INSERT INTO telegram_chats VALUES(?,?)", [(1, 1), (2, 2)])
+        from cyberquiz.store import now
+
+        self.db.execute(
+            "INSERT INTO jobs(id,created,topic,status,published_at) VALUES('job',?,'test','published',?)",
+            (now(), now()),
+        )
         self.db.commit()
         with (
             patch(
@@ -97,7 +103,9 @@ class ReadinessTests(unittest.TestCase):
             self.assertEqual({c.args[0] for c in send.call_args_list}, {1, 2})
             send.reset_mock()
             notify(self.db, "quality:job", "Held")
-            send.assert_called_once_with(1, "Held")
+            send.assert_called_once()
+            self.assertEqual(send.call_args.args[0], 1)
+            self.assertIn("Held", send.call_args.args[1])
 
     def test_legacy_preflight_failures_do_not_exhaust_real_generation_budget(self):
         from cyberquiz.store import now

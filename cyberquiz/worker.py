@@ -5,7 +5,7 @@ import fcntl
 import json
 
 from .store import ROOT, connect, config, transaction, worker_lock
-from .telegram import tables, send as deliver, video, notify
+from .telegram import tables, send as deliver, video
 
 
 def run(db, row):
@@ -192,25 +192,11 @@ def main():
                     except Exception as exc:
                         from .incidents import record
 
-                        incident = record(
-                            db, "worker", "maintenance", None, type(exc).__name__
-                        )
+                        record(db, "worker", "maintenance", None, type(exc).__name__)
                         try:
-                            notify(
-                                db,
-                                "worker-error:"
-                                + dt.datetime.now(dt.timezone.utc).date().isoformat()
-                                + ":"
-                                + type(exc).__name__,
-                                json.dumps(
-                                    {
-                                        "event": "maintenance_failed",
-                                        "incident": incident,
-                                        "failure_type": type(exc).__name__,
-                                        "publication_attempted": "consult job phase and receipts",
-                                    }
-                                ),
-                            )
+                            from .health import check
+
+                            check(db)
                         except Exception:
                             pass
                         # Bounded recovery wait; no one-minute idle polling.

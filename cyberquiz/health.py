@@ -70,53 +70,137 @@ def findings(db, cfg, clock=None, services=None):
     return issues
 
 
-def check(db, *, services=None):
-    from .telegram import notify
+def alert_scopes(issues):
+    """A chat error is not a publishing outage; a refill is not a failed post."""
+    groups = {"publishing": [], "content": [], "chat": []}
+    empty = any(i["kind"] == "queue_empty" for i in issues)
+    missed = any(i["kind"] == "missed_post" for i in issues)
+    for issue in issues:
+        kind = issue["kind"]
+        if kind == "missed_post":
+            groups["publishing"].append(issue)
+        elif kind == "queue_empty":
+            groups["publishing" if missed else "content"].append(issue)
+        elif kind == "service_down":
+            groups[
+                "publishing" if issue["service"] == "cyberquiz-worker" else "chat"
+            ].append(issue)
+        elif kind == "open_incident":
+            component = issue["component"]
+            if component in ("conversation", "telegram"):
+                groups["chat"].append(issue)
+            elif component in ("instagram", "auth"):
+                groups["publishing"].append(issue)
+            elif empty and component in (
+                "research",
+                "readiness",
+                "production",
+                "worker",
+            ):
+                groups["publishing" if missed else "content"].append(issue)
+    return groups
 
+
+def check(db, *, services=None):
+    from .telegram import notify, tables
+    from .notice_policy import prepare, prune
+
+    tables(db)
+    prepare(db)
     db.execute(
         "CREATE TABLE IF NOT EXISTS health_state(id INTEGER PRIMARY KEY,issues TEXT,changed TEXT)"
     )
+    db.execute(
+        "CREATE TABLE IF NOT EXISTS health_outages(scope TEXT PRIMARY KEY,since TEXT,event TEXT,facts TEXT)"
+    )
     cfg = config()
     current = list(findings(db, cfg, services=services))
-    old = db.execute("SELECT issues,changed FROM health_state WHERE id=1").fetchone()
-    previous = json.loads(old["issues"]) if old else []
+    old = db.execute("SELECT issues FROM health_state WHERE id=1").fetchone()
+    previous = json.loads(old[0]) if old else []
     if services is None:
         current.extend(i for i in previous if i["kind"] == "service_down")
-    encoded = json.dumps(current, sort_keys=True)
-    if old and old["issues"] == encoded:
-        return current
     stamp = now()
-    db.execute("INSERT OR REPLACE INTO health_state VALUES(1,?,?)", (encoded, stamp))
-    db.commit()
-    missed = [i for i in current if i["kind"] == "missed_post"]
-    old_missed = {i["slot"] for i in previous if i["kind"] == "missed_post"}
-    for issue in missed:
-        if issue["slot"] not in old_missed:
-            notify(
-                db,
-                "missed-post:" + issue["slot"],
-                json.dumps(
-                    {
-                        "event": "scheduled_post_missed",
-                        "slot": issue["slot"],
-                        "issues": [i for i in current if i["kind"] != "missed_post"],
-                    }
-                ),
-            )
-    blockers = [i for i in current if i["kind"] != "missed_post"]
-    old_blockers = [i for i in previous if i["kind"] != "missed_post"]
-    # Detail changes are stored, but one continuing outage does not need another message.
-    if bool(blockers) != bool(old_blockers):
-        notify(
-            db,
-            "health:" + stamp,
-            json.dumps(
-                {
-                    "event": "pipeline_blocked" if blockers else "pipeline_recovered",
-                    "issues": blockers,
-                }
-            ),
+    clock = dt.datetime.fromisoformat(stamp)
+    db.execute(
+        "INSERT OR REPLACE INTO health_state VALUES(1,?,?)",
+        (json.dumps(current, sort_keys=True), stamp),
+    )
+    published = [
+        dt.datetime.fromisoformat(r[0])
+        for r in db.execute(
+            "SELECT published_at FROM jobs WHERE published_at IS NOT NULL"
         )
+    ]
+    zone = ZoneInfo(cfg["timezone"])
+    from .schedule import next_post_at
+
+    due = next_post_at(cfg, published, clock)
+    context = {
+        "confirmed_posts_today": sum(
+            p.astimezone(zone).date() == clock.astimezone(zone).date()
+            for p in published
+        ),
+        "last_published_at": max(published).isoformat() if published else None,
+        "ready_reels": db.execute(
+            "SELECT count(*) FROM jobs WHERE approved=1 AND status IN ('rendered','container_created')"
+        ).fetchone()[0],
+        "next_post_at": due.isoformat() if due else None,
+        "timezone": cfg["timezone"],
+    }
+    db.commit()
+    for scope, issues in alert_scopes(current).items():
+        prior = db.execute(
+            "SELECT * FROM health_outages WHERE scope=?", (scope,)
+        ).fetchone()
+        if not issues:
+            if prior:
+                delivered = db.execute(
+                    "SELECT 1 FROM notices WHERE event=? AND status='sent'",
+                    (prior["event"],),
+                ).fetchone()
+                db.execute("DELETE FROM health_outages WHERE scope=?", (scope,))
+                db.commit()
+                prune(db)
+                if delivered:
+                    notify(
+                        db,
+                        "health:" + scope + ":recovered:" + stamp,
+                        json.dumps(
+                            {
+                                "event": "workflow_recovered",
+                                "scope": scope,
+                                "resolved_issues": json.loads(prior["facts"])["issues"],
+                                **context,
+                            }
+                        ),
+                    )
+            continue
+        event = prior["event"] if prior else "health:" + scope + ":" + stamp
+        since = prior["since"] if prior else stamp
+        payload = json.dumps(
+            {"event": "workflow_delayed", "scope": scope, "issues": issues, **context}
+        )
+        db.execute(
+            "INSERT OR REPLACE INTO health_outages VALUES(?,?,?,?)",
+            (scope, since, event, payload),
+        )
+        if prior and prior["facts"] != payload:
+            db.execute(
+                "UPDATE notice_texts SET facts=?,text=NULL WHERE event=? AND state='pending'",
+                (payload, event),
+            )
+        db.commit()
+        urgent = scope == "publishing" or (
+            scope == "content" and due is not None and due <= clock
+        )
+        delivered = db.execute(
+            "SELECT 1 FROM notices WHERE event=?", (event,)
+        ).fetchone()
+        if not delivered and (
+            urgent or (clock - dt.datetime.fromisoformat(since)).total_seconds() >= 600
+        ):
+            notify(db, event, payload)
+    prune(db)
     return current
 
 
@@ -130,8 +214,8 @@ def main():
         services[service] = result.stdout.strip()
     from .telegram import retry_notifications
 
-    retry_notifications(db)
     issues = check(db, services=services)
+    retry_notifications(db)
     if (
         any(i["kind"] == "queue_empty" for i in issues)
         and services["cyberquiz-worker"] == "active"

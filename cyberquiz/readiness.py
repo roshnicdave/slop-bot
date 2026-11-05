@@ -19,6 +19,7 @@ def ensure(db, recover_preflight=False):
             from .incidents import resolve
 
             resolve(db, "readiness")
+            resolve(db, "production", phase="held_quality")
             return "ready"
         if db.execute(
             "SELECT 1 FROM jobs WHERE status IN ('voice','rendering','publish_unknown','container_submitting') LIMIT 1"

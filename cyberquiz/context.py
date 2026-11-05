@@ -7,7 +7,7 @@ CATALOG = {
     "status": "Compact live state without changing anything.",
     "queue": "Questions, diagrams and explanations for ready/recently published Reels, plus current job states.",
     "preferences": "Persisted operator advice with IDs, timestamps and how production uses it.",
-    "activity": "Queued/running operator work, recent outcomes and readiness refill attempts.",
+    "activity": "Operator work, refill attempts, incidents and notification/delivery history.",
     "research": "Latest topic-wide Reel discovery, sampled visual findings, and primary-source editorial research.",
     "experiments": "Current content experiments and recorded outcomes.",
     "budget": "Live paid reservations and free quota accounting.",
@@ -132,6 +132,21 @@ def read(db, resource):
                 db,
                 "incidents",
                 "SELECT component,phase,code,message,job,opened,resolved,state FROM incidents ORDER BY opened DESC LIMIT 8",
+            ),
+            "notifications": rows(
+                db,
+                "notice_texts",
+                "SELECT event,state,substr(text,1,240) AS text,created FROM notice_texts ORDER BY rowid DESC LIMIT 6",
+            ),
+            "notification_deliveries": rows(
+                db,
+                "notices",
+                "SELECT event,status FROM notices ORDER BY rowid DESC LIMIT 6",
+            ),
+            "active_workflow_alerts": rows(
+                db,
+                "health_outages",
+                "SELECT scope,since,event FROM health_outages",
             ),
             "historical_job_errors": rows(
                 db,

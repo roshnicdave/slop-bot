@@ -62,11 +62,20 @@ readiness ledger for the Telegram agent to inspect.
 
 Enable cyberquiz-health.timer alongside the worker. It checks local queue, missed
 posting windows, open incidents and service state every 30 minutes, independently
-of the worker. Pipeline turns also check health on completion or failure. Only state
-changes create AI-written owner notifications; publication notices retain their
-existing audience. Failed AI notice composition remains pending with bounded retries,
-including after daily quota reset. Telegram transport uncertainty is retained rather
-than blindly resent. No monitor can deliver through a Telegram outage.
+of the worker. Pipeline turns also check health on completion or failure. Alerts
+track publishing, content preparation and chat separately. Short chat/refill
+interruptions have a ten-minute grace period; a due post or stopped publishing
+worker is urgent. A recovery is sent only if the corresponding failure was delivered.
+All notification text is AI-written from current facts, including confirmed posts
+and the ready queue. Publication notices retain their existing audience.
+
+Notification lifecycle state is separate from delivery receipts. Resolved or
+superseded operational notices stay in history without being sent. Only the latest
+confirmed publication remains eligible for delayed delivery, for at most 24 hours,
+with its actual publication time. Pending notices are checked again after AI
+composition. Current, ongoing failures remain retryable across free-quota resets;
+obsolete alerts and old recovery messages do not drain as a backlog. Unknown
+Telegram send outcomes retain receipts and are never blindly resent.
 
 Completed research output that cannot be parsed gets one durable JSON repair within
 the shared free allowance. The original response and accounting remain unchanged;

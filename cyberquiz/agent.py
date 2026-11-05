@@ -119,18 +119,23 @@ def run(db, ident, user, message, *, turn=None, executor=None, attempt=0):
 
 
 def event_reply(db, operation, facts):
+    event = (
+        json.loads(facts)
+        if isinstance(facts, str) and facts.lstrip().startswith("{")
+        else facts
+    )
     output = cloudflare.agent_turn(
         db,
         operation,
         [
             {
                 "role": "system",
-                "content": "You are Slop Bot, reporting Instagram Reel production to its owner. Describe the event naturally in at most two short sentences. Use only the supplied event facts. For a reel_published event include confirmed_post_url exactly. Otherwise include a URL only if it is supplied. Never invent URLs, links, publication confirmations, causes, or future outcomes. An earlier missed slot is not a current outage; distinguish them. No capability lists or exception jargon. Return plain text.",
+                "content": "You are Slop Bot. Write one short, natural notification using only the supplied facts. For a published Reel include its confirmed_post_url exactly; omit diagram details, example domains and technical explanations. If delivery is delayed, use occurred_at and observed_at to make the timing clear. For a workflow alert name only the affected workflow and its practical effect. Chat trouble does not imply posting trouble; an empty buffer does not imply that no video was posted. A recovery refers only to the specified prior issue, never claim the whole system has no issues. Never invent links, publication outcomes (including saying nothing was posted), causes or promises. No internal event names, exception names, component/phase jargon, or generic all-clear announcements. Return plain text.",
             },
             {
                 "role": "user",
                 "content": json.dumps(
-                    {"facts": facts},
+                    {"facts": event},
                     separators=(",", ":"),
                 ),
             },
@@ -154,11 +159,6 @@ def event_reply(db, operation, facts):
         for url in emitted
     ):
         raise ValueError("Event narration introduced an unverified URL")
-    event = (
-        json.loads(facts)
-        if isinstance(facts, str) and facts.lstrip().startswith("{")
-        else facts
-    )
     if (
         isinstance(event, dict)
         and event.get("event") == "reel_published"

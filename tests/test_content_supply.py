@@ -212,6 +212,19 @@ class ContentSupplyTests(unittest.TestCase):
         )
         self.assertEqual(discovery.plain_copy("payp\u0430l.test"), "payp\u0430l.test")
 
+    def test_retrieval_finds_rules_beyond_a_long_document_introduction(self):
+        doc = Mock()
+        rule = "OSPF neighbors must use the same area on a shared link; otherwise adjacency cannot form."
+        doc.paragraphs.return_value = [
+            "Navigation and introduction to this configuration guide. " * 4
+        ] * 60 + [rule]
+        with patch(
+            "cyberquiz.knowledge.fetch", return_value=(doc, b"original document")
+        ):
+            source = discovery.read("https://www.cisco.com/guide", "Configuring OSPF")
+        self.assertIn(rule, source["excerpt"])
+        self.assertTrue(any(p["text"] == rule for p in source["passages"]))
+
     def test_large_web_index_cannot_crowd_out_networking_documents(self):
         knowledge.tables(self.db)
         items = [

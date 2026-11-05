@@ -212,6 +212,14 @@ class ContentSupplyTests(unittest.TestCase):
         )
         self.assertEqual(discovery.plain_copy("payp\u0430l.test"), "payp\u0430l.test")
 
+    def test_readable_title_break_does_not_split_the_question_at_why(self):
+        self.assertEqual(
+            discovery.headline_lines(
+                ["Two offices use a GRE tunnel. Why", "does ping fail?"]
+            ),
+            ["Two offices use a GRE tunnel.", "Why does ping fail?"],
+        )
+
     def test_retrieval_finds_rules_beyond_a_long_document_introduction(self):
         doc = Mock()
         rule = "OSPF neighbors must use the same area on a shared link; otherwise adjacency cannot form."

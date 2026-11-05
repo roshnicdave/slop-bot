@@ -264,6 +264,24 @@ def style_examples(db):
     return result
 
 
+def headline_lines(lines):
+    """Prefer a sentence boundary when both title lines remain readable."""
+    import re
+    from .visual import F
+    from .render import wrap
+
+    text = " ".join(lines)
+    for boundary in reversed(list(re.finditer(r"(?<=[.!])\s+", text))):
+        parts = [text[: boundary.start()], text[boundary.end() :]]
+        if all(len(s) > 8 and F(33, True).getlength(s) <= 590 for s in parts):
+            return parts
+    if 1 <= len(lines) <= 2 and all(
+        F(33, True).getlength(line) <= 590 for line in lines
+    ):
+        return lines
+    return wrap(text, F(33, True), 590)
+
+
 def compile_scene(draft, source, article, objectives, ident):
     passages = source["passages"]
     draft = plain_copy(draft)
@@ -280,16 +298,7 @@ def compile_scene(draft, source, article, objectives, ident):
             )
     if issues:
         raise CopyNeedsEdit("; ".join(issues))
-    from .visual import F
-    from .render import wrap
-
-    lines = draft.pop("question_lines", [])
-    if not (
-        1 <= len(lines) <= 2
-        and all(F(33, True).getlength(line) <= 590 for line in lines)
-    ):
-        lines = wrap(" ".join(lines), F(33, True), 590)
-    draft["question"] = "\n".join(lines)
+    draft["question"] = "\n".join(headline_lines(draft.pop("question_lines", [])))
     fields = (
         "topic",
         "core_claim",

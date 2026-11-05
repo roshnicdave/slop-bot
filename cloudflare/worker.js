@@ -1,5 +1,6 @@
 const CHAT = '@cf/meta/llama-3.1-8b-instruct-fp8-fast';
 const REVIEW = '@cf/qwen/qwen3-30b-a3b-fp8';
+const DRAFTER = '@cf/openai/gpt-oss-120b';
 const EDITOR = '@cf/mistralai/mistral-small-3.1-24b-instruct';
 const VISION = '@cf/meta/llama-3.2-11b-vision-instruct';
 const ASR = '@cf/openai/whisper';
@@ -16,7 +17,7 @@ export default {
     let data;
     try {data=JSON.parse(raw);} catch {return new Response('Bad JSON',{status:400});}
     const {model,input}=data;
-    if (![CHAT,EDITOR,REVIEW,VOICE,VISION,ASR].includes(model) || !input) return new Response('Model denied',{status:400});
+    if (![CHAT,EDITOR,REVIEW,DRAFTER,VOICE,VISION,ASR].includes(model) || !input) return new Response('Model denied',{status:400});
     if (model === VISION || model === ASR) {
       const bytes = model === VISION ? input.image : input.audio;
       const agreement = model === VISION && input.prompt === 'agree';
@@ -35,12 +36,13 @@ export default {
       } catch(error) {return Response.json({success:false,error:String(error.message).slice(0,400)},{status:502});}
     }
     if (raw.length > 48000) return new Response('Too large',{status:413});
-    if (model === CHAT || model === EDITOR || model === REVIEW) {
+    if (model === CHAT || model === EDITOR || model === REVIEW || model === DRAFTER) {
       if (!Array.isArray(input.messages) || input.messages.length>24 ||
           !Number.isInteger(input.max_tokens) || input.max_tokens<1 || input.max_tokens>1400)
         return new Response('Profile denied',{status:400});
       // Input never gets access to AWS, the Instagram token, or Telegram tools.
       const options = {messages:input.messages, max_tokens:input.max_tokens, temperature:0.2};
+      if (model === DRAFTER) options.reasoning_effort = 'low';
       if (input.tools) {
         if (!Array.isArray(input.tools) || input.tools.length > 12) return new Response('Tools profile denied',{status:400});
         options.tools = input.tools.map(tool => ({type:"function",function:tool}));

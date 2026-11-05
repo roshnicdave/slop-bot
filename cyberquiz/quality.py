@@ -5,7 +5,7 @@ import re
 from . import scenarios, cloudflare
 from .store import now
 
-REVIEW_VERSION = 11
+REVIEW_VERSION = 12
 
 
 def layout(p):
@@ -15,12 +15,14 @@ def layout(p):
     from .visual import F
     from .render import wrap
 
-    if not p["question"].strip().endswith("?"):
+    if not p["question"].strip().endswith("?") or p["question"].count("?") != 1:
         raise ValueError("Quiz opening must ask a question")
-    if not p["intro"].strip().endswith("?"):
+    if not p["intro"].strip().endswith("?") or p["intro"].count("?") != 1:
         raise ValueError("Quiz narration must ask the question")
     if len(p["question"].split("\n")) > 2:
         raise ValueError("Hook exceeds two lines")
+    if any(F(33, True).getlength(line) > 590 for line in p["question"].split("\n")):
+        raise ValueError("Question would need undersized title text")
     if len(wrap(p.get("closing_prompt", ""), F(23, False), 610)) > 3:
         raise ValueError("Closing prompt does not fit")
     if len(wrap(p["clue"], F(16, False), 650)) > 2:
@@ -32,6 +34,24 @@ def layout(p):
     for option in p["options"]:
         if F(22, True).getlength(option) > 545:
             raise ValueError("Answer would become too small")
+    if p["diagram"]["kind"] == "flow":
+        from .flow_visual import triangle
+
+        compact = triangle(p["diagram"])
+        if any(
+            F(14, False).getlength(e["label"]) > (100 if compact else 180)
+            for e in p["diagram"]["edges"]
+        ):
+            raise ValueError("Diagram link labels would overlap")
+        if any(
+            F(16, True).getlength(n["label"]) > (180 if compact else 192)
+            or any(
+                F(14, False).getlength(s) > (170 if compact else 190)
+                for s in n.get("details", [])
+            )
+            for n in p["diagram"]["nodes"]
+        ):
+            raise ValueError("Diagram device evidence would overlap")
     if p["diagram"]["kind"] == "config":
         if len(p["diagram"]["lines"]) > 4:
             raise ValueError("Too much configuration evidence")

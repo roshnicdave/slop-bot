@@ -175,8 +175,8 @@ def wrong_gateway():
 
 
 def bank():
-    # New number combinations are NOT counted as new concepts. The scout sees
-    # four distinct mechanisms, and the selector enforces a concept cooldown.
+    # Checked practice mechanisms. New values revisit a lesson after spacing;
+    # primary-source generation supplies objectives beyond this starter bank.
     from .labs import bank as labs
 
     return [
@@ -198,12 +198,12 @@ def validate(scene):
         raise ValueError("Need four distinct choices")
     if len(scene["question"].replace("\n", " ")) > 90:
         raise ValueError("Hook too long")
-    if not d["links_up"]:
-        raise ValueError("Assumptions must match displayed link lights")
     if family == "source-grounded":
         from .discovery import validate as source_validate
 
         return source_validate(scene)
+    if not d["links_up"]:
+        raise ValueError("Assumptions must match displayed link lights")
     if family.startswith("lab-"):
         from .labs import validate as lab_validate
 

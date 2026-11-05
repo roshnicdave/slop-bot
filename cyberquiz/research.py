@@ -1,7 +1,42 @@
 """Daily discovery process, independent of the publishing worker and chat."""
 
 import json
-from .store import connect
+from .store import connect, config, now, ROOT
+
+
+def reserve(db):
+    cfg = config()
+    if not cfg.get("generation_enabled") or cfg.get("emergency_pause"):
+        return {"status": "paused"}
+    from .scout import daily
+    from .discovery import replenish, pool
+
+    try:
+        research = daily(db)
+    except Exception:
+        research = {
+            "day": now()[:10],
+            "ideas": [],
+            "evidence": {"records": []},
+            "research_deferred": True,
+        }
+    try:
+        from .cloudflare import drafting_budget
+
+        with drafting_budget():
+            result = {
+                "status": replenish(db, research),
+                "reviewed_text_drafts": len(pool(db)),
+                "checked_at": now(),
+            }
+    except Exception as exc:
+        result = {
+            "status": "deferred",
+            "reason": type(exc).__name__ + ": " + str(exc)[:180],
+            "checked_at": now(),
+        }
+    (ROOT / "data" / "text-reserve-status.json").write_text(json.dumps(result))
+    return result
 
 
 def main():
@@ -10,11 +45,15 @@ def main():
 
     db = connect()
     try:
+        print(json.dumps({"text_reserve": reserve(db)}), flush=True)
         try:
             social_daily(db)
         except Exception:
             pass  # Reference-account failures must not block topic-wide discovery.
-        result = trend_daily(db)
+        try:
+            result = trend_daily(db)
+        except Exception:
+            result = {"status": "deferred", "reels_discovered": 0, "examples": []}
         print(
             json.dumps(
                 {

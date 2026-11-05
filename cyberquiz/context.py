@@ -10,6 +10,7 @@ CATALOG = {
     "activity": "Operator work, refill attempts, incidents and notification/delivery history.",
     "research": "Latest topic-wide Reel discovery, sampled visual findings, and primary-source editorial research.",
     "experiments": "Current content experiments and recorded outcomes.",
+    "curriculum": "Exam topic coverage, reviewed text reserve and current repetition policy.",
     "budget": "Live paid reservations and free quota accounting.",
 }
 
@@ -193,6 +194,54 @@ def read(db, resource):
             "experiments",
             "SELECT id,state,parameter,hypothesis,outcome FROM experiments ORDER BY created DESC LIMIT 3",
         )
+    if resource == "curriculum":
+        drafts = []
+        for row in rows(
+            db,
+            "source_attempts",
+            "SELECT id FROM source_attempts WHERE status='ready' ORDER BY day,id LIMIT 8",
+        ):
+            path = ROOT / "data" / "discovery" / (row["id"] + ".json")
+            if path.exists():
+                scene = json.loads(path.read_text())
+                drafts.append(
+                    {
+                        k: scene.get(k)
+                        for k in (
+                            "question",
+                            "topic",
+                            "certification",
+                            "exam_objective",
+                            "source_url",
+                        )
+                    }
+                )
+        status = ROOT / "data" / "text-reserve-status.json"
+        cfg = config()
+        return {
+            "blueprints": rows(
+                db,
+                "curriculum_documents",
+                "SELECT cert,url,checked FROM curriculum_documents ORDER BY cert",
+            ),
+            "mapped_objectives": rows(
+                db,
+                "curriculum_topics",
+                "SELECT cert,count(*) AS count FROM curriculum_topics GROUP BY cert",
+            ),
+            "published_coverage": rows(
+                db,
+                "content_history",
+                "SELECT h.certification,h.objective,count(*) AS count FROM content_history h JOIN jobs j ON j.id=h.job WHERE j.status='published' AND h.certification!='' GROUP BY h.certification,h.objective",
+            ),
+            "reviewed_text_drafts": drafts,
+            "reserve_target": cfg.get("text_draft_reserve", 3),
+            "reserve_status": json.loads(status.read_text())
+            if status.exists()
+            else None,
+            "lesson_spacing_reels": cfg.get("lesson_cooldown_reels", 8),
+            "identical_case_spacing_reels": cfg.get("novelty_cooldown_reels", 50),
+        }
     from .accounting import summary
 
     return summary(db)

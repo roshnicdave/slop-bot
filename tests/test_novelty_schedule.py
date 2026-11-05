@@ -10,7 +10,7 @@ from cyberquiz.schedule import deadline
 
 
 class NoveltyTests(unittest.TestCase):
-    def test_fifty_published_objectives_and_all_history_exact_claims(self):
+    def test_fifty_reel_history_is_not_a_permanent_lesson_ban(self):
         with tempfile.TemporaryDirectory() as folder:
             db = connect(Path(folder) / "s.db")
             for n in range(52):
@@ -30,26 +30,24 @@ class NoveltyTests(unittest.TestCase):
                 "cyberquiz.novelty.config", return_value={"novelty_cooldown_reels": 50}
             ):
                 self.assertEqual(len(recent(db)), 50)
-                with self.assertRaises(ValueError):
-                    check(
-                        db,
-                        {
-                            "family": "different wording",
-                            "topic": "new label",
-                            "core_claim": "claim A",
-                            "question": "Reworded",
-                        },
-                    )
-                with self.assertRaises(ValueError):
-                    check(
-                        db,
-                        {
-                            "family": "x",
-                            "topic": "lesson Z",
-                            "core_claim": "unrelated claim content",
-                            "question": "Changed numbers",
-                        },
-                    )
+                check(
+                    db,
+                    {
+                        "family": "different wording",
+                        "topic": "new label",
+                        "core_claim": "claim A",
+                        "question": "Reworded",
+                    },
+                )
+                check(
+                    db,
+                    {
+                        "family": "x",
+                        "topic": "lesson Z",
+                        "core_claim": "unrelated claim content",
+                        "question": "Changed numbers",
+                    },
+                )
                 check(
                     db,
                     {

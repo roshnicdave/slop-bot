@@ -56,59 +56,9 @@ def diagram(d, p, fixed):
     kind = view["kind"]
     fix = p.get("fix_diagram", {})
     if kind == "flow":
-        nodes = view["nodes"]
-        positions = {n["id"]: (140 + i * 220, 466) for i, n in enumerate(nodes)}
-        if len(nodes) == 2:
-            positions = {nodes[0]["id"]: (180, 466), nodes[1]["id"]: (540, 466)}
-        for edge in view["edges"]:
-            x, y = positions[edge["from"]]
-            xx, yy = positions[edge["to"]]
-            direction = 1 if xx > x else -1
-            start = x + 48 * direction
-            end = xx - 48 * direction
-            d.line((start, y, end, yy), fill="#365f79", width=4)
-            d.polygon(
-                [
-                    (end, yy),
-                    (end - 10 * direction, yy - 6),
-                    (end - 10 * direction, yy + 6),
-                ],
-                fill="#365f79",
-            )
-            text(
-                d,
-                edge["label"],
-                (start + end) / 2,
-                y - 42,
-                17,
-                INK,
-                width=180,
-                center=True,
-            )
-        for node in nodes:
-            x, y = positions[node["id"]]
-            if node["kind"] in ("pc", "browser"):
-                computer(d, x, y)
-            elif node["kind"] == "router":
-                switch(d, x, y, True)
-            else:
-                d.rounded_rectangle(
-                    (x - 37, y - 40, x + 37, y + 43),
-                    radius=6,
-                    fill="#294e65",
-                    outline="#102c40",
-                    width=2,
-                )
-                for offset in (-24, -2, 20):
-                    d.rounded_rectangle(
-                        (x - 27, y + offset, x + 27, y + offset + 13),
-                        radius=2,
-                        fill="#d8e4eb",
-                    )
-                    d.ellipse(
-                        (x + 16, y + offset + 4, x + 21, y + offset + 9), fill="#38965f"
-                    )
-            text(d, node["label"], x, 543, 21, INK, True, width=192, center=True)
+        from .flow_visual import draw
+
+        draw(d, p)
         return
     if kind == "config":
         if p.get("model", {}).get("kind") == "url":

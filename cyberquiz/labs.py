@@ -424,6 +424,61 @@ def variant(scene, seed):
             f"Switch B does not allow VLAN {vlan} on this trunk. A green link does not prove VLAN delivery."
         )
         p["fix"] = f"Allow VLAN {vlan} on both ends of the trunk."
+    elif k == "pool":
+        pool = [f"192.168.{octet}.10", f"192.168.{octet}.11"]
+        m.update(pool=pool, leased=pool.copy())
+        p["diagram"]["lines"] = [
+            "Pool: " + pool[0] + " - .11",
+            pool[0] + ": active lease",
+            pool[1] + ": active lease",
+            "New client: DHCP DISCOVER",
+        ]
+    elif k == "cache":
+        old, new = r.sample(range(2, 240), 2)
+        m.update(
+            authoritative=f"203.0.113.{new}",
+            cached=f"203.0.113.{old}",
+            ttl=r.choice([60, 120, 180, 300]),
+        )
+        p["diagram"]["lines"] = [
+            "Authoritative A: " + m["authoritative"],
+            "Cached A: " + m["cached"],
+            f"Cache TTL remaining: {m['ttl']} sec",
+            "Client uses this resolver",
+        ]
+    elif k == "tls":
+        host = r.choice(["api", "mail", "portal"]) + ".example.test"
+        m.update(host=host, sans=["www.example.test"])
+        p["diagram"]["lines"] = [
+            "Requested: " + host,
+            "Certificate SAN: www.example.test",
+            "TCP 443: connected",
+            "Trust chain: valid",
+        ]
+    elif k == "url":
+        base = r.choice(["accounts", "payments", "portal"]) + ".example.test"
+        host = "login." + base + ".evil.test"
+        m.update(url="https://" + host + "/", expected=host)
+        p.update(
+            answer=host, distractors=["login." + base, base, "The browser chooses"]
+        )
+        p["diagram"]["lines"] = [
+            m["url"],
+            "Target host is between // and /",
+            "Dots are part of the hostname",
+        ]
+        p["explanation"] = (
+            "The full host ends in evil dot test. Familiar words at the start do not make it the real site."
+        )
+    elif k == "duplicate":
+        host = r.randint(10, 200)
+        ip = f"192.168.{octet}.{host}"
+        m.update(a=ip, b=ip, fixed_b=f"192.168.{octet}.{host + 1}")
+        p["diagram"]["lines"] = [
+            "PC A: " + ip + ", MAC ...:AA",
+            "PC B: " + ip + ", MAC ...:BB",
+            f"ARP for .{host} alternates AA / BB",
+        ]
     elif k == "mtu":
         mtu = r.choice([1280, 1360, 1400, 1450])
         packet = mtu + r.choice([40, 80, 100])
@@ -450,6 +505,8 @@ def variant(scene, seed):
             "The assigned IP is the broadcast address of the shown subnet. It is not a usable host address on this LAN."
         )
         p["fix"] = "Assign a unique usable host address inside this subnet."
+        p["distractors"] = [s.replace("/24", f"/{prefix}") for s in p["distractors"]]
+        p["clue"] = f"Ordinary IPv4 /{prefix} LAN. No special host routes."
     m["seed"] = seed
     # Rebuild speech from checked explanation/fix in the plan compiler.
     return p

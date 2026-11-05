@@ -1,5 +1,5 @@
 [Unit]
-Description=Daily topic-wide Reel discovery and bounded example inspection
+Description=Reviewed text reserve and bounded topic-wide Reel discovery
 After=network-online.target
 Wants=network-online.target
 [Service]

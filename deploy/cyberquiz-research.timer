@@ -1,8 +1,8 @@
 [Unit]
-Description=Daily cross-account Reel research
+Description=Refresh content reserve and reference research every six hours
 [Timer]
 OnBootSec=10min
-OnCalendar=*-*-* 03:17:00 UTC
+OnCalendar=*-*-* 00,06,12,18:17:00 UTC
 Persistent=true
 Unit=cyberquiz-research.service
 [Install]

@@ -16,7 +16,7 @@ Run `python3 deploy/upload.py`. Stop the three Python services for the source sw
 python3 deploy/aws_access.py 'systemctl is-active cyberquiz-telegram cyberquiz-conversation cyberquiz-worker cyberquiz-media'
 ```
 
-Tests cover source-proof binding, 50-Reel history, numerical disguises of duplicate claims, scheduling deadlines, budget races, experiment adoption requirements, private access, Telegram media deletion/resending, audio alignment and uncertain publication protection.
+Tests cover source-proof binding, configurable lesson/identical-case spacing, blueprint parsing, safe documentation discovery, prepared-draft production during planner outages, background quota isolation, scheduling deadlines, budget races, experiment adoption requirements, private access, Telegram media deletion/resending, audio alignment and uncertain publication protection.
 
 ## Costs and failure handling
 
@@ -134,3 +134,9 @@ Diagram renderer version is written into the encoded clip's timing manifest and
 artifact checks. Queued unsubmitted text-card clips are refreshed without voice or
 image API calls. Missing narration holds the job rather than silently purchasing it
 again. A confirmed or uncertain Meta submission is never replaced by this refresh.
+
+## Content reserve
+
+Install the research service, timer and path units from `deploy/`, then enable `cyberquiz-research.timer` and `cyberquiz-research.path`. Research fills three reviewed text plans on a six-hour cadence and after a rendered Reel signals consumption. Run `python -m cyberquiz.research` on the server for a bounded reserve refill; it does not purchase voice or render reserve media. Telegram can inspect exam maps, coverage and the latest reserve outcome through the read-only `curriculum` resource.
+
+The PDF parser only extracts public blueprint text; it downloads neither exam question dumps nor local model weights. Blueprint URLs are configurable and retained with hashes and check dates. The last usable map survives a source outage. Review seed URLs when exam versions change; periodic fetching does not itself discover a new blueprint URL.

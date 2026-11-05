@@ -27,7 +27,9 @@ The model supports native function calls through the Workers AI binding. Worker 
 
 ## Autonomous production
 
-Daily primary-source research proposes diagnostic concepts and technical diagrams. Independent source/executable checks, semantic novelty review, a 50-published-Reel concept cooldown and all-history exact-claim checks can reject a candidate. Rewording or renumbering is not novelty. Source reviews remain fallible and are not described as executable proof.
+Public exam blueprints provide a coverage map; bounded documentation crawling expands the source catalog beyond news and the checked starter bank. Source passages are numbered and copied in code, then reviewed independently against the worked example and exam objective. Repeated lessons are useful spaced practice: defaults are an eight-Reel lesson gap and 50-Reel identical-case gap, not a permanent claim ban. Source reviews remain fallible and are not described as executable proof.
+
+A separate research process maintains three complete, preflighted text plans. Citation checks, source audit, title-only entailment and a blind diagram solver run before a draft becomes ready. Production consumes these plans without repeating text inference. Source drafting has a separate budget context within the shared free allowance; it cannot exhaust the editorial category. A path wake after staging and a six-hour timer replenish the reserve without holding the publication lock. Optional editorial planning and experiment proposals are not production prerequisites.
 
 The worker stages one approved Reel and refills after consumption, subject to quota, quality and bounded attempts. Scheduled posting consumes ready work first. Jobs, usage reservations, source evidence, experiments and outcomes survive process restarts. The daemon sleeps to deadlines and wakes on a durable-inbox signal; it does not poll every minute.
 

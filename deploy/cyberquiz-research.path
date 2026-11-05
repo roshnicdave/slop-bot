@@ -1,0 +1,7 @@
+[Unit]
+Description=Replenish reviewed text drafts after staging a Reel
+[Path]
+PathChanged=/home/ec2-user/cyber-quiz/data/research-wake
+Unit=cyberquiz-research.service
+[Install]
+WantedBy=multi-user.target

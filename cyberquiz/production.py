@@ -1,6 +1,8 @@
 """A durable visual production task. No paid fallback in the standard path."""
 
 import json
+import copy
+import datetime as dt
 from .store import ROOT, new_job, config, worker_lock
 from . import scenarios, scout, cloudflare, content
 
@@ -16,10 +18,31 @@ def _make(db, slot=None, scene_key=None, attempt=0):
         raise ValueError("Pipeline is paused")
     if not cloudflare.available():
         raise ValueError("Cloudflare connection missing; no paid fallback")
-    research = scout.daily(db)
+    try:
+        research = scout.daily(db)
+    except Exception:
+        research = {
+            "day": dt.datetime.now(dt.timezone.utc).date().isoformat(),
+            "ideas": [],
+            "evidence": {},
+            "research_deferred": True,
+        }
     from .experiments import ensure
 
-    ensure(db, research)
+    try:
+        ensure(db, research)
+    except Exception as exc:
+        # An optional experiment proposal is not a prerequisite for a Reel.
+        db.execute(
+            "INSERT OR IGNORE INTO experiment_decisions VALUES(?,?)",
+            (
+                dt.datetime.now(dt.timezone.utc).date().isoformat(),
+                json.dumps(
+                    {"hold_reason": "Proposal unavailable", "error": type(exc).__name__}
+                ),
+            ),
+        )
+        db.commit()
     scene = (
         next((s for s in scenarios.bank() if s["key"] == scene_key), None)
         if scene_key
@@ -32,12 +55,32 @@ def _make(db, slot=None, scene_key=None, attempt=0):
     novelty.check(db, scene)
     evidence = content.source_evidence(scene)
     ident = new_job(db, "visual:" + scene["key"], slot)
+    if scene["family"] == "source-grounded":
+        db.execute(
+            "UPDATE source_attempts SET status='claimed' WHERE id=?", (scene["key"],)
+        )
+        db.commit()
     folder = ROOT / "out" / ident
     folder.mkdir()
     try:
-        p = scenarios.plan(
-            scene, {"research_day": research["day"], "ideas": research["ideas"]}, ident
+        from .quality import REVIEW_VERSION, layout
+
+        ready = scene.get("ready_plan", {})
+        prepared = (
+            ready.get("quality", {}).get("passed")
+            and ready.get("quality", {}).get("review_version") == REVIEW_VERSION
         )
+        p = (
+            copy.deepcopy(ready)
+            if prepared
+            else scenarios.plan(
+                {k: v for k, v in scene.items() if k != "ready_plan"},
+                {"research_day": research["day"], "ideas": research["ideas"]},
+                ident,
+            )
+        )
+        p["id"] = ident
+        p["account"] = cfg["account"]
         p["evidence"] = evidence
         p["design_version"] = 3
         p["sound_cues"] = True
@@ -49,14 +92,20 @@ def _make(db, slot=None, scene_key=None, attempt=0):
         p.update(experiment(db, p, ident))
         from .editorial import craft
 
-        p = craft(db, ident, p, research)
+        if not prepared:
+            p = craft(db, ident, p, research)
         (folder / "plan.json").write_text(json.dumps(p, indent=2))
         db.execute("UPDATE jobs SET plan=? WHERE id=?", (json.dumps(p), ident))
         db.commit()
         novelty.record(db, ident, p)
         from .editorial import review_opening
 
-        p, quality = review_opening(db, ident, p, research)
+        if prepared:
+            scenarios.validate(p)
+            layout(p)
+            quality = p["quality"]
+        else:
+            p, quality = review_opening(db, ident, p, research)
         (folder / "quality.json").write_text(json.dumps(quality, indent=2))
         p["quality"] = quality
         (folder / "plan.json").write_text(json.dumps(p, indent=2))
@@ -69,7 +118,16 @@ def _make(db, slot=None, scene_key=None, attempt=0):
             db.execute('UPDATE jobs SET status="held_quality" WHERE id=?', (ident,))
             db.commit()
             if attempt < 1:
-                return make(db, slot=(slot + ":fallback") if slot else None, attempt=1)
+                try:
+                    return make(
+                        db, slot=(slot + ":fallback") if slot else None, attempt=1
+                    )
+                except ValueError as exc:
+                    if "No sufficiently novel verified candidate" not in str(exc):
+                        raise
+                    # Keep the original review outcome rather than relabeling a
+                    # held draft as a failed production with no associated job.
+                    return ident
             return ident
         if cfg.get("voice_provider") == "elevenlabs":
             from .premium_voice import preflight
@@ -106,6 +164,10 @@ def _make(db, slot=None, scene_key=None, attempt=0):
             (int(not cfg["require_approval"]), ident),
         )
         db.commit()
+        try:
+            (ROOT / "data" / "research-wake").touch()
+        except OSError:
+            pass  # The periodic research timer is the fallback.
         return ident
     except BaseException as exc:
         from .incidents import record
@@ -234,6 +296,19 @@ def refresh_visuals(db, job=None):
         ).fetchall()
         for row in rows:
             p = json.loads(row["plan"] or "{}")
+            if not p.get("visual"):
+                continue
+            try:
+                layout(p)
+            except ValueError as exc:
+                if row["container_id"] or row["media_id"]:
+                    continue
+                db.execute(
+                    "UPDATE jobs SET status='held_quality',approved=0,error=? WHERE id=?",
+                    (str(exc), row["id"]),
+                )
+                db.commit()
+                continue
             if (
                 p.get("diagram", {}).get("kind") != "config"
                 or p.get("quality", {})

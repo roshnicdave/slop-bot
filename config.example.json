@@ -35,9 +35,21 @@
   "paid_providers_enabled": false,
   "voice_speaker": "orion",
   "novelty_cooldown_reels": 50,
+  "lesson_cooldown_reels": 8,
   "source_discovery_enabled": true,
+  "knowledge_indexes": [
+    "https://developer.mozilla.org/en-US/docs/Web/Security",
+    "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides",
+    "https://developers.cloudflare.com/1.1.1.1/encryption/",
+    "https://learn.microsoft.com/en-us/windows-server/networking/",
+    "https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst9300/software/release/17-12/configuration_guide/vlan/b_1712_vlan_9300_cg.html",
+    "https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst9300/software/release/17-12/configuration_guide/rtng/b_1712_rtng_9300_cg.html"
+  ],
+  "text_draft_reserve": 3,
+  "source_draft_attempts_per_day": 6,
+  "content_audience": "CCNA learners and early-career IT people, with related Network+ and Security+ preparation. Fresh, concise troubleshooting cases across exam domains. Revisit useful lessons through spaced practice.  Familiar everyday failures involving websites, Wi-Fi, email, logins, devices or home/office networks. One understandable concept per Reel. Avoid obscure products, enterprise internals, advanced cryptography, acronym recall and unstated specialist knowledge.",
   "cf_chat_neuron_limit": 10000,
-  "cf_research_neuron_limit": 3000,
+  "cf_research_neuron_limit": 5500,
   "preview_voice_experiment_cap_usd": 0.06,
   "telegram_owner_user_id": null,
   "preview_recipient_user_ids": [],
@@ -54,5 +66,8 @@
     "networksecurity"
   ],
   "trend_topics_per_day": 4,
-  "trend_visual_inspection_enabled": true
+  "trend_visual_inspection_enabled": true,
+  "cf_editorial_neuron_limit": 1500,
+  "cf_drafting_neuron_limit": 5000,
+  "cf_draft_model": "@cf/openai/gpt-oss-120b"
 }

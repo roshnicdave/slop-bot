@@ -21,7 +21,8 @@ Target two posts daily. Posting times are recorded experiments based on account 
 ## Autonomy and long-term learning
 
 - Save source excerpts, URLs, timestamps, provenance, plans, decisions and performance as compact text metadata.
-- Block exact claim repeats across published history; apply a 50-published-Reel concept cooldown and semantic review. Rewording or renumbering is not novelty. Discovery may create new source-grounded concepts beyond the checked scenario bank. Failed factual or novelty gates mean skip, not forced publication.
+- Cover a wide range of public CCNA and related Network+/Security+ objectives. Revisiting the same lesson in new wording or a new scenario is acceptable occasionally; rotate topics rather than demand permanently unique concepts. Default spacing is eight published Reels per lesson and 50 per identical practice case, configurable. Generate beyond the checked starter bank using primary documentation. Rejected drafts yield to another candidate within bounded free attempts; unsupported content never bypasses quality checks.
+- Maintain a reserve of three fully audited text drafts independently of one rendered Reel. Background generation wakes after consumption and every six hours; optional research failures must not prevent using already reviewed work. Retain text, not reserve media.
 - Separate creative proposals from deterministic operational checks. Source-based factual review is fallible and must not be described as executable proof.
 - Persist operator preferences, experiment assignments, hypotheses and outcomes. Change one bounded production factor at a time; use comparable-age outcomes and minimum sample thresholds before adopting a challenger. No claims of proven learning before data exists.
 - Durable jobs and inbox; exclusive production lock; idempotent publication; never create a second post after an unknown publication outcome. Bound source attempts, provider calls and recovery.

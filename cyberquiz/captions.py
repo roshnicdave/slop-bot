@@ -6,6 +6,14 @@ def hashtags(p):
         str(p.get(k, "")) for k in ("family", "topic", "core_claim", "question")
     ).lower()
     tags = ["#CyberSecurity", "#Networking"]
+    cert = p.get("certification")
+    if cert in ("CCNA", "Network+", "Security+"):
+        tags.insert(
+            0,
+            {"CCNA": "#CCNA", "Network+": "#NetworkPlus", "Security+": "#SecurityPlus"}[
+                cert
+            ],
+        )
     if any(
         word in text
         for word in (
@@ -21,7 +29,7 @@ def hashtags(p):
             "nat ",
         )
     ):
-        tags.extend(["#CCNA", "#CCNP"])
+        tags.append("#CCNA")
     elif any(word in text for word in ("phishing", "tls", "firewall", "certificate")):
         tags.append("#SecurityPlus")
     for keywords, tag in [
@@ -31,7 +39,8 @@ def hashtags(p):
         ("url phishing login", "#PhishingAwareness"),
         ("tls certificate", "#TLS"),
         ("acl firewall", "#NetworkSecurity"),
-        ("cache model inference", "#AISecurity"),
+        ("cache caching", "#Caching"),
+        ("model inference", "#AISecurity"),
     ]:
         if any(word in text for word in keywords.split()):
             tags.append(tag)

@@ -5,6 +5,8 @@ import json
 import math
 import re
 import wave
+from contextlib import contextmanager
+from contextvars import ContextVar
 
 import requests
 
@@ -18,7 +20,18 @@ VISION = "@cf/meta/llama-3.2-11b-vision-instruct"
 ASR = "@cf/openai/whisper"
 EDITOR = "@cf/mistralai/mistral-small-3.1-24b-instruct"
 REVIEW = "@cf/qwen/qwen3-30b-a3b-fp8"
+DRAFTER = "@cf/openai/gpt-oss-120b"
 AGENT_OUTPUT_TOKENS = 180
+_drafting = ContextVar("drafting_budget", default=False)
+
+
+@contextmanager
+def drafting_budget():
+    token = _drafting.set(True)
+    try:
+        yield
+    finally:
+        _drafting.reset(token)
 
 
 class CloudflareRequestError(RuntimeError):
@@ -97,7 +110,8 @@ def reserve(db, operation, kind, neurons):
         categories = {
             "chat": ["chat", "control"],
             "voice": ["voice"],
-            "research": ["research", "editorial"],
+            "research": ["research", "drafting"],
+            "editorial": ["editorial"],
         }
         category = next(
             (name for name, kinds in categories.items() if kind in kinds), None
@@ -109,7 +123,8 @@ def reserve(db, operation, kind, neurons):
                 "cf_chat_neuron_limit", c.get("cf_daily_neuron_limit", 10000)
             ),
             "voice": 3000,
-            "research": c.get("cf_research_neuron_limit", 3000),
+            "research": c.get("cf_research_neuron_limit", 5500),
+            "editorial": c.get("cf_editorial_neuron_limit", 1500),
         }[category]
         kinds = categories[category]
         used = db.execute(
@@ -124,6 +139,15 @@ def reserve(db, operation, kind, neurons):
                 + category
                 + " quota reserved; production/control allowance is protected"
             )
+        if kind == "drafting":
+            drafted = db.execute(
+                "SELECT COALESCE(SUM(COALESCE(accounted_neurons,neurons)),0) FROM cf_calls WHERE day=? AND kind='drafting'",
+                (day,),
+            ).fetchone()[0]
+            if drafted + neurons > c.get("cf_drafting_neuron_limit", 5000):
+                raise FreeQuotaDeferred(
+                    "Background drafting allowance reserved; publication checks remain protected"
+                )
         if db.execute(
             "SELECT 1 FROM cf_calls WHERE operation=?", (operation,)
         ).fetchone():
@@ -138,7 +162,7 @@ def reserve(db, operation, kind, neurons):
 
 def request(db, operation, kind, model, body, neurons):
     # No Gateway credits, paid models, model switching, or external paid fallback.
-    if model not in (LLM, EDITOR, REVIEW, VOICE, VISION, ASR):
+    if model not in (LLM, EDITOR, REVIEW, DRAFTER, VOICE, VISION, ASR):
         raise ValueError("Model is outside the free-only allowlist")
     reserve(db, operation, kind, neurons)
     k = secrets()
@@ -205,7 +229,17 @@ def request(db, operation, kind, model, body, neurons):
     return r
 
 
-def llm(db, operation, messages, kind="research", max_tokens=1000, *, model=None):
+def llm(
+    db,
+    operation,
+    messages,
+    kind="research",
+    max_tokens=1000,
+    *,
+    model=None,
+):
+    if _drafting.get() and kind in ("research", "editorial"):
+        kind = "drafting"
     if max_tokens > 1400:
         raise ValueError("Output exceeds bounded profile")
     size = len(json.dumps(messages, ensure_ascii=False).encode()) + 512
@@ -217,6 +251,7 @@ def llm(db, operation, messages, kind="research", max_tokens=1000, *, model=None
         EDITOR: (31876, 50488),
         LLM: (4119, 34868),
         REVIEW: (4625, 30475),
+        DRAFTER: (31818, 68182),
     }[model]
     if model == REVIEW:
         messages = [dict(m) for m in messages]
@@ -234,6 +269,7 @@ def llm(db, operation, messages, kind="research", max_tokens=1000, *, model=None
             "max_tokens": max_tokens,
             "temperature": 0.35,
             "response_format": {"type": "json_object"},
+            **({"reasoning_effort": "low"} if model == DRAFTER else {}),
         },
         neurons,
     )

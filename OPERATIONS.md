@@ -69,6 +69,13 @@ worker is urgent. A recovery is sent only if the corresponding failure was deliv
 All notification text is AI-written from current facts, including confirmed posts
 and the ready queue. Publication notices retain their existing audience.
 
+An empty buffer is visible in status but triggers a preparation warning only after
+a failed refill or within two hours of the next posting deadline (configurable with
+`buffer_warning_lead_minutes`). Consuming the buffer after successful posts is not
+a posting delay. Health notices refresh publication counts at delivery and display
+times in the configured timezone. Explicit zero-post claims that contradict the
+ledger get one free AI rewrite; a repeated contradiction stays undelivered.
+
 Notification lifecycle state is separate from delivery receipts. Resolved or
 superseded operational notices stay in history without being sent. Only the latest
 confirmed publication remains eligible for delayed delivery, for at most 24 hours,

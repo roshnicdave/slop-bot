@@ -89,6 +89,46 @@ class ChatRecoveryTests(unittest.TestCase):
         ):
             self.assertIn(url, event_reply(None, "event", {"permalink": url}))
 
+    def test_false_zero_post_claim_gets_one_free_rewrite(self):
+        from cyberquiz.agent import event_reply
+
+        with patch(
+            "cyberquiz.agent.cloudflare.agent_turn",
+            side_effect=[
+                {
+                    "content": "A workflow delay occurred. No posts were published today."
+                },
+                {
+                    "content": "Both Reels posted today. The next Reel is still being prepared."
+                },
+            ],
+        ) as model:
+            text = event_reply(None, "notice", {"confirmed_posts_today": 2})
+            self.assertIn("Both Reels posted", text)
+            self.assertEqual(model.call_count, 2)
+            self.assertEqual(model.call_args.args[1], "notice:grounding-repair")
+
+    def test_repeated_false_zero_post_claim_is_not_delivered(self):
+        from cyberquiz.agent import event_reply
+
+        with patch(
+            "cyberquiz.agent.cloudflare.agent_turn",
+            return_value={"content": "Nothing was posted today."},
+        ) as model:
+            with self.assertRaisesRegex(ValueError, "contradicted"):
+                event_reply(None, "notice", {"confirmed_posts_today": 2})
+            self.assertEqual(model.call_count, 2)
+
+    def test_buffer_warning_does_not_need_a_rewrite(self):
+        from cyberquiz.agent import event_reply
+
+        with patch(
+            "cyberquiz.agent.cloudflare.agent_turn",
+            return_value={"content": "The buffer is empty. No posts are delayed."},
+        ) as model:
+            event_reply(None, "notice", {"confirmed_posts_today": 2})
+            model.assert_called_once()
+
     def test_publication_notice_must_include_confirmed_reel_url(self):
         from cyberquiz.agent import event_reply
 

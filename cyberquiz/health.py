@@ -8,6 +8,38 @@ from zoneinfo import ZoneInfo
 from .store import connect, config, now
 
 
+def publication_context(db, cfg, clock=None):
+    """Delivery-time facts, counted and displayed in the operator's local day."""
+    clock = clock or dt.datetime.now(dt.timezone.utc)
+    zone = ZoneInfo(cfg["timezone"])
+    published = [
+        dt.datetime.fromisoformat(r[0])
+        for r in db.execute(
+            "SELECT published_at FROM jobs WHERE published_at IS NOT NULL"
+        )
+    ]
+    from .schedule import next_post_at
+
+    due = next_post_at(cfg, published, clock)
+    completed = sum(
+        p.astimezone(zone).date() == clock.astimezone(zone).date() for p in published
+    )
+    return {
+        "local_date": clock.astimezone(zone).date().isoformat(),
+        "confirmed_posts_today": completed,
+        "daily_target": cfg["posts_per_day"],
+        "daily_target_met": completed >= cfg["posts_per_day"],
+        "last_published_at": max(published).astimezone(zone).isoformat()
+        if published
+        else None,
+        "ready_reels": db.execute(
+            "SELECT count(*) FROM jobs WHERE approved=1 AND status IN ('rendered','container_created')"
+        ).fetchone()[0],
+        "next_post_at": due.astimezone(zone).isoformat() if due else None,
+        "timezone": cfg["timezone"],
+    }
+
+
 def findings(db, cfg, clock=None, services=None):
     clock = clock or dt.datetime.now(dt.timezone.utc)
     issues = []
@@ -28,17 +60,36 @@ def findings(db, cfg, clock=None, services=None):
         if not ready and not active:
             recent = (
                 db.execute(
-                    "SELECT status,error FROM readiness_attempts ORDER BY id DESC LIMIT 1"
+                    "SELECT * FROM readiness_attempts ORDER BY id DESC LIMIT 1"
                 ).fetchone()
                 if db.execute(
                     "SELECT 1 FROM sqlite_master WHERE name='readiness_attempts'"
                 ).fetchone()
                 else None
             )
+            context = publication_context(db, cfg, clock)
+            due = context["next_post_at"]
+            preparation_due = (
+                due is not None
+                and (dt.datetime.fromisoformat(due) - clock).total_seconds()
+                <= cfg.get("buffer_warning_lead_minutes", 120) * 60
+            )
+            # Consuming a completed buffer is normal. Warn about an actual
+            # unsuccessful refill or an approaching unprepared publication.
+            failed = recent and (
+                recent["status"] not in ("complete", "started") or recent["error"]
+            )
+            if failed and "created" in recent.keys() and context["last_published_at"]:
+                failed = dt.datetime.fromisoformat(
+                    recent["created"]
+                ) > dt.datetime.fromisoformat(context["last_published_at"])
             issues.append(
                 {
                     "kind": "queue_empty",
-                    "failure": dict(recent) if recent else None,
+                    "failure": {k: recent[k] for k in ("status", "error")}
+                    if recent
+                    else None,
+                    "actionable": bool(preparation_due or failed),
                 }
             )
     if enabled and cfg.get("publishing_enabled"):
@@ -73,14 +124,17 @@ def findings(db, cfg, clock=None, services=None):
 def alert_scopes(issues):
     """A chat error is not a publishing outage; a refill is not a failed post."""
     groups = {"publishing": [], "content": [], "chat": []}
-    empty = any(i["kind"] == "queue_empty" for i in issues)
+    empty = any(
+        i["kind"] == "queue_empty" and i.get("actionable", True) for i in issues
+    )
     missed = any(i["kind"] == "missed_post" for i in issues)
     for issue in issues:
         kind = issue["kind"]
         if kind == "missed_post":
             groups["publishing"].append(issue)
         elif kind == "queue_empty":
-            groups["publishing" if missed else "content"].append(issue)
+            if issue.get("actionable", True) or missed:
+                groups["publishing" if missed else "content"].append(issue)
         elif kind == "service_down":
             groups[
                 "publishing" if issue["service"] == "cyberquiz-worker" else "chat"
@@ -125,28 +179,12 @@ def check(db, *, services=None):
         "INSERT OR REPLACE INTO health_state VALUES(1,?,?)",
         (json.dumps(current, sort_keys=True), stamp),
     )
-    published = [
-        dt.datetime.fromisoformat(r[0])
-        for r in db.execute(
-            "SELECT published_at FROM jobs WHERE published_at IS NOT NULL"
-        )
-    ]
-    zone = ZoneInfo(cfg["timezone"])
-    from .schedule import next_post_at
-
-    due = next_post_at(cfg, published, clock)
-    context = {
-        "confirmed_posts_today": sum(
-            p.astimezone(zone).date() == clock.astimezone(zone).date()
-            for p in published
-        ),
-        "last_published_at": max(published).isoformat() if published else None,
-        "ready_reels": db.execute(
-            "SELECT count(*) FROM jobs WHERE approved=1 AND status IN ('rendered','container_created')"
-        ).fetchone()[0],
-        "next_post_at": due.isoformat() if due else None,
-        "timezone": cfg["timezone"],
-    }
+    context = publication_context(db, cfg, clock)
+    due = (
+        dt.datetime.fromisoformat(context["next_post_at"])
+        if context["next_post_at"]
+        else None
+    )
     db.commit()
     for scope, issues in alert_scopes(current).items():
         prior = db.execute(
@@ -154,14 +192,29 @@ def check(db, *, services=None):
         ).fetchone()
         if not issues:
             if prior:
+                prior_issues = json.loads(prior["facts"])["issues"]
+                # Retire legacy false alarms without following them with an
+                # equally misleading "recovered" message. Keep sent receipts.
+                obsolete_buffer_alarm = scope == "content" and all(
+                    i["kind"] == "queue_empty"
+                    and isinstance(i.get("failure"), dict)
+                    and i["failure"].get("status") == "complete"
+                    and not i["failure"].get("error")
+                    for i in prior_issues
+                )
                 delivered = db.execute(
                     "SELECT 1 FROM notices WHERE event=? AND status='sent'",
                     (prior["event"],),
                 ).fetchone()
                 db.execute("DELETE FROM health_outages WHERE scope=?", (scope,))
+                if obsolete_buffer_alarm:
+                    db.execute(
+                        "UPDATE notice_texts SET state='superseded' WHERE event=?",
+                        (prior["event"],),
+                    )
                 db.commit()
                 prune(db)
-                if delivered:
+                if delivered and not obsolete_buffer_alarm:
                     notify(
                         db,
                         "health:" + scope + ":recovered:" + stamp,
@@ -169,7 +222,7 @@ def check(db, *, services=None):
                             {
                                 "event": "workflow_recovered",
                                 "scope": scope,
-                                "resolved_issues": json.loads(prior["facts"])["issues"],
+                                "resolved_issues": prior_issues,
                                 **context,
                             }
                         ),
@@ -178,7 +231,14 @@ def check(db, *, services=None):
         event = prior["event"] if prior else "health:" + scope + ":" + stamp
         since = prior["since"] if prior else stamp
         payload = json.dumps(
-            {"event": "workflow_delayed", "scope": scope, "issues": issues, **context}
+            {
+                "event": "buffer_needs_attention"
+                if scope == "content"
+                else "workflow_delayed",
+                "scope": scope,
+                "issues": issues,
+                **context,
+            }
         )
         db.execute(
             "INSERT OR REPLACE INTO health_outages VALUES(?,?,?,?)",

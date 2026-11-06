@@ -2,6 +2,7 @@
 
 import datetime as dt
 import json
+from zoneinfo import ZoneInfo
 from .store import now, config
 
 
@@ -130,7 +131,8 @@ def current_facts(db, row):
     payload = facts(row["facts"])
     payload["occurred_at"] = row["created"]
     payload["observed_at"] = now()
-    payload["timezone"] = config().get("timezone", "UTC")
+    cfg = config()
+    payload["timezone"] = cfg.get("timezone", "UTC")
     if row["event"].startswith("published:"):
         post = db.execute(
             "SELECT published_at FROM jobs WHERE id=?", (row["event"].split(":", 1)[1],)
@@ -146,4 +148,18 @@ def current_facts(db, row):
         ).fetchone()
         if outage:
             payload.update(facts(outage[0]))
+    if row["event"].startswith("health:"):
+        from .health import publication_context
+
+        payload.update(
+            publication_context(
+                db, cfg, dt.datetime.fromisoformat(payload["observed_at"])
+            )
+        )
+    zone = ZoneInfo(payload["timezone"])
+    for key in ("occurred_at", "observed_at"):
+        if payload.get(key):
+            payload[key] = (
+                dt.datetime.fromisoformat(payload[key]).astimezone(zone).isoformat()
+            )
     return json.dumps(payload)

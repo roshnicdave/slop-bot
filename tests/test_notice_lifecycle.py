@@ -8,7 +8,7 @@ from unittest.mock import patch
 from cyberquiz.store import connect, new_job, now
 from cyberquiz.telegram import tables, notify, retry_notifications
 from cyberquiz.health import check
-from cyberquiz.notice_policy import prepare
+from cyberquiz.notice_policy import prepare, current_facts
 
 
 class NoticeLifecycleTests(unittest.TestCase):
@@ -86,6 +86,43 @@ class NoticeLifecycleTests(unittest.TestCase):
         self.assertTrue(
             all(n["state"] == "superseded" for n in activity["notifications"])
         )
+
+    def test_delayed_health_notice_uses_fresh_local_publication_facts(self):
+        self.cfg["timezone"] = "America/Los_Angeles"
+        self.cfg["slots"] = ["12:35", "19:19"]
+        self.cfg["posts_per_day"] = 2
+        prepare(self.db)
+        self.db.execute(
+            "CREATE TABLE health_outages(scope TEXT PRIMARY KEY,since TEXT,event TEXT,facts TEXT)"
+        )
+        for stamp in ("2026-11-05T21:30:00+00:00", "2026-11-06T03:30:00+00:00"):
+            job = new_job(self.db, stamp)
+            self.db.execute(
+                "UPDATE jobs SET status='published',published_at=? WHERE id=?",
+                (stamp, job),
+            )
+        old = {
+            "event": "buffer_needs_attention",
+            "scope": "content",
+            "confirmed_posts_today": 0,
+        }
+        self.db.execute(
+            "INSERT INTO health_outages VALUES('content',?,?,?)",
+            ("2026-11-06T03:30:00+00:00", "health:content:test", json.dumps(old)),
+        )
+        row = {
+            "event": "health:content:test",
+            "facts": json.dumps(old),
+            "created": "2026-11-06T03:30:00+00:00",
+        }
+        with patch(
+            "cyberquiz.notice_policy.now", return_value="2026-11-06T04:00:00+00:00"
+        ):
+            payload = json.loads(current_facts(self.db, row))
+        self.assertEqual(payload["confirmed_posts_today"], 2)
+        self.assertEqual(payload["local_date"], "2026-11-05")
+        self.assertEqual(payload["occurred_at"], "2026-11-05T19:30:00-08:00")
+        self.assertEqual(payload["next_post_at"], "2026-11-06T12:35:00-08:00")
 
     def test_unsent_failure_that_recovers_has_no_failure_or_recovery_message(self):
         self.cfg["publishing_enabled"] = False

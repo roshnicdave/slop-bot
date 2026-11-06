@@ -88,6 +88,16 @@ def project(prompt):
         }
         for k, value in list(prompt.get("own_metrics", {}).items())[:4]
     }
+    growth = prompt.get("own_growth", {})
+    out["own_growth"] = {
+        "recent_posts": [
+            {k: (text(v, 140) if isinstance(v, str) else v) for k, v in post.items()}
+            for post in growth.get("recent_posts", [])[:4]
+        ],
+        "account_followers": growth.get("account_followers", [])[:7],
+        "follower_change": growth.get("follower_change"),
+        "interpretation": text(growth.get("interpretation"), 600),
+    }
     return out
 
 
@@ -112,6 +122,7 @@ def messages(system, prompt):
             view["social_evidence"]["topic_wide_discovery"]["examples"],
             view["supported_scenes"],
             view["recent"],
+            view["own_growth"]["recent_posts"],
         ]
         target = next((items for items in removable if items), None)
         if target is not None:

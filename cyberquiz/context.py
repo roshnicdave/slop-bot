@@ -10,6 +10,7 @@ CATALOG = {
     "activity": "Operator work, refill attempts, incidents and notification/delivery history.",
     "research": "Latest topic-wide Reel discovery, sampled visual findings, and primary-source editorial research.",
     "experiments": "Current content experiments and recorded outcomes.",
+    "performance": "Latest own-Reel views, watch time, reach, sharing and account follower growth, with measurement limitations.",
     "curriculum": "Exam topic coverage, reviewed text reserve and current repetition policy.",
     "budget": "Live paid reservations and free quota accounting.",
 }
@@ -28,6 +29,10 @@ def read(db, resource):
         raise ValueError("Unknown read resource")
     if resource == "status":
         return snapshot(db)
+    if resource == "performance":
+        from .learning import growth
+
+        return growth(db)
     if resource == "queue":
         jobs = rows(
             db,

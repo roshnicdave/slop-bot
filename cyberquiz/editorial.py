@@ -79,27 +79,9 @@ def craft(db, job, p, research):
     opening = p["question"].replace("\n", " ")
     p["intro"] = speak(opening)
     p["closing_prompt"] = "Comment your answer."
-    from .captions import hashtags
+    from .captions import caption
 
-    p["caption"] = (
-        opening
-        + (
-            "\n\n" + p["certification"] + " practice: " + p.get("exam_skill", "")
-            if p.get("certification")
-            else ""
-        )
-        + "\n\nComment your answer."
-        + "\n\n"
-        + p["explanation"]
-        + " "
-        + p["fix"]
-        + "\n\nAssumptions: "
-        + p["clue"]
-        + "\nSource: "
-        + p["source_url"]
-        + "\n\n"
-        + hashtags(p)
-    )
+    p["caption"] = caption(p)
     p["creative_draft"] = {
         "opening": opening,
         "hook_lines": p["question"].split("\n"),

@@ -17,6 +17,65 @@ def metric(payload, name):
         return None
 
 
+def growth(db):
+    """Recent observations for creative planning, never early winner selection."""
+    posts = []
+    for job in db.execute(
+        "SELECT id,media_id,published_at,plan FROM jobs WHERE status='published' ORDER BY published_at DESC LIMIT 6"
+    ):
+        snap = db.execute(
+            "SELECT payload,age_hours,observed FROM metrics WHERE media_id=? ORDER BY age_hours DESC LIMIT 1",
+            (job["media_id"],),
+        ).fetchone()
+        if not snap:
+            continue
+        payload, p = json.loads(snap["payload"]), json.loads(job["plan"] or "{}")
+        reach = metric(payload, "reach")
+        watch = metric(payload, "ig_reels_avg_watch_time")
+        duration = p.get("quality", {}).get("artifact", {}).get("duration_seconds")
+        entry = {
+            "job": job["id"],
+            "question": str(p.get("question", ""))[:120],
+            "family": p.get("family"),
+            "certification": p.get("certification"),
+            "snapshot_age_hours": round(snap["age_hours"], 1),
+            "observed_at": snap["observed"],
+            "reach": reach,
+            "views": metric(payload, "views"),
+            "average_watch_seconds": None if watch is None else round(watch / 1000, 3),
+            "duration_seconds": duration,
+            "average_watch_fraction": round(watch / 1000 / duration, 3)
+            if watch is not None and isinstance(duration, (float, int)) and duration > 0
+            else None,
+        }
+        for name in ("likes", "shares", "saved", "follows"):
+            value = metric(payload, name)
+            entry[name + "_per_1000_reached"] = (
+                round(1000 * value / reach, 2)
+                if value is not None and reach is not None and reach > 0
+                else None
+            )
+        posts.append(entry)
+    account = []
+    if db.execute(
+        "SELECT 1 FROM sqlite_master WHERE name='account_snapshots'"
+    ).fetchone():
+        account = [
+            dict(r)
+            for r in db.execute(
+                "SELECT observed_at,followers FROM account_snapshots WHERE followers IS NOT NULL ORDER BY day DESC LIMIT 7"
+            )
+        ]
+    return {
+        "recent_posts": posts,
+        "account_followers": account,
+        "follower_change": account[0]["followers"] - account[-1]["followers"]
+        if len(account) >= 2
+        else None,
+        "interpretation": "Different snapshot ages are not a fair ranking. Use early data to propose hypotheses; retain comparable 72-hour results for adoption. Average watch fraction is not completion rate and may include replays. Missing follows are unavailable, not zero; account follower changes cannot be attributed to individual Reels. Shares are not an isolated DM-send metric.",
+    }
+
+
 def analyze(db):
     groups = {}
     posts = []
@@ -63,6 +122,7 @@ def analyze(db):
         "preferred_format": winner,
         "experiment_share": 0.25,
         "posts": posts,
+        "growth": growth(db),
         "cadence_recommendation": "Use the configured cadence. Compare similar-age reach, shares and follows while accounting for topic and format differences; two posts per day is an experiment, not a virality guarantee.",
     }
 

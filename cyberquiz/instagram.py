@@ -235,9 +235,39 @@ def _publish(db, job, *, immediate=False):
     return result["id"]
 
 
+def account_snapshot(db):
+    """One inexpensive daily account count; no invented per-Reel attribution."""
+    db.execute(
+        "CREATE TABLE IF NOT EXISTS account_snapshots(day TEXT PRIMARY KEY,observed_at TEXT,followers INTEGER)"
+    )
+    stamp = now()
+    if db.execute(
+        "SELECT 1 FROM account_snapshots WHERE day=?", (stamp[:10],)
+    ).fetchone():
+        return
+    account = secrets().get("IG_USER_ID")
+    if not account:
+        return
+    followers = None
+    try:
+        value = graph("GET", account, params={"fields": "followers_count"}).get(
+            "followers_count"
+        )
+        if type(value) is int and value >= 0:
+            followers = value
+    except RuntimeError:
+        pass  # Missing analytics must never block a ready post.
+    db.execute(
+        "INSERT OR IGNORE INTO account_snapshots VALUES(?,?,?)",
+        (stamp[:10], stamp, followers),
+    )
+    db.commit()
+
+
 def insights(db):
     import datetime as dt
 
+    account_snapshot(db)
     for row in db.execute('SELECT * FROM jobs WHERE status="published"').fetchall():
         age = (
             dt.datetime.now(dt.timezone.utc)

@@ -126,6 +126,9 @@ def _make(db, slot=None, scene_key=None, attempt=0):
             quality = p["quality"]
         else:
             p, quality = review_opening(db, ident, p, research)
+        from .captions import caption
+
+        p["caption"] = caption(p)  # Also refresh older, fully reviewed text reserves.
         (folder / "quality.json").write_text(json.dumps(quality, indent=2))
         p["quality"] = quality
         (folder / "plan.json").write_text(json.dumps(p, indent=2))

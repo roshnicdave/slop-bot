@@ -1,6 +1,38 @@
 """Short, relevant metadata; no unrelated copied viral-caption boilerplate."""
 
 
+def caption(p):
+    cert = p.get("certification")
+    follow = (
+        "Follow for visual " + cert + " practice."
+        if cert in ("CCNA", "Network+", "Security+")
+        and p.get("content_scope") != "industry"
+        else "Follow for practical networking and security."
+    )
+    practice = (
+        "\n\n" + cert + " practice: " + p.get("exam_skill", "")
+        if cert and p.get("exam_skill") and p.get("content_scope") != "industry"
+        else ""
+    )
+    return (
+        p["question"].replace("\n", " ")
+        + "\n\n"
+        + follow
+        + "\nComment your answer."
+        + "\n\n"
+        + p["explanation"]
+        + " "
+        + p["fix"]
+        + practice
+        + "\n\nAssumptions: "
+        + p["clue"]
+        + "\nSource: "
+        + p["source_url"]
+        + "\n\n"
+        + hashtags(p)
+    )
+
+
 def hashtags(p):
     text = " ".join(
         str(p.get(k, "")) for k in ("family", "topic", "core_claim", "question")

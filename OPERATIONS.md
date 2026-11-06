@@ -36,6 +36,19 @@ Use normal Telegram messages such as “post the next reel now”, “show the l
 
 ## Topic-wide discovery
 
+Creative planning receives recent own-Reel questions, snapshot ages, views,
+reach, watch time, and rates of likes/shares/saves alongside the existing
+comparable 72-hour evidence. Early results suggest experiments; they do not
+automatically replace the approved design or prove a winner. Average watch
+time divided by duration is not a completion rate. Missing metrics stay unknown.
+The existing Telegram read capability exposes this as `performance`.
+
+One daily account follower-count read provides a dated growth trend. Changes
+are account-level observations, not per-Reel attribution. Unavailable counts
+remain unknown and are attempted again on the next day. This adds no model
+calls or paid service. Future captions retain a short reason to follow before
+the answer, including the actual exam name only for an aligned practice Reel.
+
 `cyberquiz-research.timer` starts the isolated research oneshot daily at 03:17 UTC and
 after boot. It observes top/recent Reel samples across hashtag searches rather than only
 following a competitor watchlist. Install the matching service/timer from `deploy/`, run

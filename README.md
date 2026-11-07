@@ -21,6 +21,8 @@ Current-source selection receives publication dates and source types, so evergre
 
 The technical diagram, dark palette, Inter typography, no-subheading rule, short hook and “Comment your answer” prompt are operator requirements. The agent can explore content choices within those requirements, not silently discard them.
 
+An optional Telugu audio-mix overlay (`telugu_mix_enabled`, default off) adds short Telugu narration for the configured segments — intro greeting and closing explanation by default. Technical terms (TTL, DHCP, Layer 2, IP addresses, port numbers) stay in English inside the Telugu lines so pronunciation is correct. Each translation goes through an independent review gate matching the existing source-review pattern; a rejected translation falls back to English-only without blocking the Reel. The technical reveal remains English. The added Telugu characters count against the per-job narration cap, so enabling this feature requires raising `per_job_budget_usd` beyond the default $0.03; the preflight will reject the whole narration rather than silently exceed the budget.
+
 ## Storage and cost
 
 SQLite stores jobs, source evidence, concept history, experiments, usage and Telegram file IDs. No additional database service or local inference model is needed. Media exists only while rendering/transmitting: private preview media is deleted after Telegram delivery; published media is deleted after a confirmed Instagram receipt. Telegram previews can be resent using file IDs. Pending publishing artifacts remain staged until their outcome is known.

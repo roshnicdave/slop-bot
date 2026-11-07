@@ -72,5 +72,8 @@
   "trend_visual_inspection_enabled": true,
   "cf_editorial_neuron_limit": 1500,
   "cf_drafting_neuron_limit": 5000,
-  "cf_draft_model": "@cf/openai/gpt-oss-120b"
+  "cf_draft_model": "@cf/openai/gpt-oss-120b",
+  "telugu_mix_enabled": false,
+  "telugu_voice_id": "pNInz6obpgDQGcFmaJgB",
+  "telugu_segments": ["intro", "fix_voice"]
 }

@@ -14,7 +14,7 @@ Target two posts daily. Posting times are recorded experiments based on account 
 - Each question needs one defensible answer and plausible distractors. Keep necessary assumptions inside its accurate technical diagram.
 - Preserve the approved dark navy palette, Inter typography, clean technical illustrations and readable answer choices. No watermarks, subheadings, decorative microtext or redundant instructions.
 - The CTA is “Comment your answer.” Do not enumerate visible choices in the CTA.
-- Natural American male narration: selected Chris voice, currently 1.08 pace. Synchronize scene changes and subtitles to actual audio. Reject silent or invalid exports.
+- Natural American male narration: selected Chris voice, currently 1.08 pace. Synchronize scene changes and subtitles to actual audio. Reject silent or invalid exports. An optional Telugu audio-mix overlay is available for audience engagement; it runs under the same preflight budget and never replaces the verified English technical reveal.
 - Show the question immediately, allow a short thinking interval, reveal and explain. Include concise relevant captions and hashtags.
 - Inspect real public quiz examples when accessible; record visible evidence and distinguish it from hypotheses. Multilingual boilerplate captions are not proven growth mechanisms.
 

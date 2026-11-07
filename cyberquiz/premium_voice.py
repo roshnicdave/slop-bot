@@ -26,7 +26,7 @@ def preflight(db, scripts):
         raise ValueError("Monthly narration allowance exhausted")
 
 
-def generate(db, job, label, text, speaker, path):
+def generate(db, job, label, text, speaker, path, language_code="en"):
     if path.exists():
         return
     check_runner()
@@ -36,8 +36,12 @@ def generate(db, job, label, text, speaker, path):
     preview = row[0] == "preview"
     if not preview and config().get("voice_provider") != "elevenlabs":
         raise ValueError("Premium production voice is not selected")
-    if speaker not in ("Chris", "George") or not text.isascii() or len(text) > 350:
-        raise ValueError("Preview voice profile invalid")
+    if language_code == "en":
+        if speaker not in ("Chris", "George") or not text.isascii() or len(text) > 350:
+            raise ValueError("Preview voice profile invalid")
+    else:
+        if not isinstance(speaker, str) or not speaker or len(text) > 350:
+            raise ValueError("Preview voice profile invalid")
     cfg = config()
     cap = round(cfg.get("preview_voice_experiment_cap_usd", 0) * 1e6)
     amount = len(text) * 100
@@ -78,7 +82,7 @@ def generate(db, job, label, text, speaker, path):
                 "text": text,
                 "voice": speaker,
                 "stability": 0.5,
-                "language_code": "en",
+                "language_code": language_code,
                 "timestamps": True,
             },
             timeout=45,

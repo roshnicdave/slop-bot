@@ -7,6 +7,13 @@ from .store import ROOT, new_job, config, worker_lock
 from . import scenarios, scout, cloudflare, content
 
 
+def _telugu_labels(cfg):
+    if not cfg.get("telugu_mix_enabled"):
+        return []
+    labels = cfg.get("telugu_segments") or ["intro", "fix_voice"]
+    return [l for l in labels if l in ("intro", "reveal_voice", "fix_voice")]
+
+
 def make(db, slot=None, scene_key=None, attempt=0):
     with worker_lock():
         return _make(db, slot, scene_key, attempt)
@@ -152,10 +159,18 @@ def _make(db, slot=None, scene_key=None, attempt=0):
                     # held draft as a failed production with no associated job.
                     return ident
             return ident
+        telugu_labels = _telugu_labels(cfg)
+        telugu_texts = {}
+        if telugu_labels:
+            from . import translation
+
+            for label in telugu_labels:
+                telugu_texts[label] = translation.prepare(db, ident, label, p[label])
         if cfg.get("voice_provider") == "elevenlabs":
             from .premium_voice import preflight
 
-            preflight(db, [p[k] for k in ("intro", "reveal_voice", "fix_voice")])
+            english = [p[k] for k in ("intro", "reveal_voice", "fix_voice")]
+            preflight(db, english + [t for t in telugu_texts.values() if t])
         for label in ["intro", "reveal_voice", "fix_voice"]:
             if cfg.get("voice_provider") == "elevenlabs":
                 from .premium_voice import generate
@@ -170,6 +185,24 @@ def _make(db, slot=None, scene_key=None, attempt=0):
                 )
             else:
                 cloudflare.voice(db, ident, label, p[label], folder / (label + ".wav"))
+        for label in telugu_labels:
+            telugu = telugu_texts.get(label)
+            if not telugu:
+                continue
+            if cfg.get("voice_provider") == "elevenlabs":
+                from .premium_voice import generate
+
+                generate(
+                    db,
+                    ident,
+                    label + "_te",
+                    telugu,
+                    cfg.get("telugu_voice_id"),
+                    folder / (label + "_te.wav"),
+                    language_code="te",
+                )
+        if telugu_texts:
+            p["telugu_mix"] = {k: v for k, v in telugu_texts.items() if v}
         db.execute('UPDATE jobs SET status="rendering" WHERE id=?', (ident,))
         db.commit()
         from .visual import render
@@ -242,6 +275,23 @@ def _resume(db, ident):
             )
         else:
             cloudflare.voice(db, ident, label, p[label], folder / (label + ".wav"))
+    cfg_resume = config()
+    saved_telugu = p.get("telugu_mix") or {}
+    for label in _telugu_labels(cfg_resume):
+        telugu = saved_telugu.get(label)
+        if not telugu or cfg_resume.get("voice_provider") != "elevenlabs":
+            continue
+        from .premium_voice import generate
+
+        generate(
+            db,
+            ident,
+            label + "_te",
+            telugu,
+            cfg_resume.get("telugu_voice_id"),
+            folder / (label + "_te.wav"),
+            language_code="te",
+        )
     from .visual import render
 
     render(folder)

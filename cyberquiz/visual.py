@@ -273,7 +273,10 @@ def render(folder):
     speed = p.get("narration_speed", 1.0)
     if not 1 <= speed <= 1.2:
         raise ValueError("Narration pace outside natural profile")
-    audio_names = ("intro", "reveal_voice", "fix_voice")
+    audio_names = ["intro", "reveal_voice", "fix_voice"]
+    for extra in ("intro_te", "fix_voice_te"):
+        if (folder / (extra + ".wav")).exists():
+            audio_names.append(extra)
     pace_marker = folder / "pace.json"
     if speed != 1 and not pace_marker.exists():
         for label in audio_names:
@@ -296,36 +299,61 @@ def render(folder):
             )
             target.replace(source)
         pace_marker.write_text(json.dumps({"speed": speed}))
+    intro_te_path = folder / "intro_te.wav"
+    fix_te_path = folder / "fix_voice_te.wav"
+    greeting = duration(intro_te_path) if intro_te_path.exists() else 0
+    signoff = duration(fix_te_path) if fix_te_path.exists() else 0
     intro = duration(folder / "intro.wav")
     decision = p.get("decision_seconds", 5)
+    telugu_mix = (p.get("telugu_mix") or {}) if (greeting or signoff) else {}
     if p.get("voice_version") == 2:
         reveal_audio = folder / "reveal_voice.wav"
         fix_audio = folder / "fix_voice.wav"
         reveal_duration = duration(reveal_audio)
         fix_duration = duration(fix_audio)
         fix_delay = reveal_duration
-        total = intro + decision + reveal_duration + fix_duration + 0.6
-        segments = [
-            {"stage": "question", "start": 0, "end": intro, "text": p["intro"]},
+        total = greeting + intro + decision + reveal_duration + fix_duration + signoff + 0.6
+        segments = []
+        if greeting:
+            segments.append({
+                "stage": "question",
+                "start": 0,
+                "end": greeting,
+                "text": telugu_mix.get("intro", p["intro"]),
+            })
+        segments += [
+            {
+                "stage": "question",
+                "start": greeting,
+                "end": greeting + intro,
+                "text": p["intro"],
+            },
             {
                 "stage": "decision",
-                "start": intro,
-                "end": intro + decision,
+                "start": greeting + intro,
+                "end": greeting + intro + decision,
                 "text": "Which clue gives it away?",
             },
             {
                 "stage": "reveal",
-                "start": intro + decision,
-                "end": intro + decision + reveal_duration,
+                "start": greeting + intro + decision,
+                "end": greeting + intro + decision + reveal_duration,
                 "text": p["reveal_voice"],
             },
             {
                 "stage": "fix",
-                "start": intro + decision + reveal_duration,
-                "end": total - 0.6,
+                "start": greeting + intro + decision + reveal_duration,
+                "end": total - 0.6 - signoff,
                 "text": p["fix_voice"],
             },
         ]
+        if signoff:
+            segments.append({
+                "stage": "fix",
+                "start": total - 0.6 - signoff,
+                "end": total - 0.6,
+                "text": telugu_mix.get("fix_voice", p["fix_voice"]),
+            })
     else:
         reveal_audio = folder / "outro.wav"
         fix_audio = None
@@ -333,19 +361,23 @@ def render(folder):
         fix_delay = min(4.4, outro * 0.55)
         total = intro + decision + outro + 0.6
         segments = []
+        greeting = 0
+        signoff = 0
     frames = folder / "frames"
     frames.mkdir(exist_ok=True)
     sequence = []
     fps = 8
     n = math.ceil(total * fps)
     # A bounded 8 fps scene animation encoded at 24 fps: no AI-video spend.
+    question_end = greeting + intro + decision
     for index in range(n):
         t = index / fps
-        if t < intro + decision:
+        t_body = t - greeting
+        if t < question_end:
             stage = "question"
-            remain = max(1, math.ceil(intro + decision - t))
-            progress = max(0, (t - intro) / decision)
-        elif t < intro + decision + fix_delay:
+            remain = max(1, math.ceil(question_end - t))
+            progress = max(0, (t_body - intro) / decision) if t_body >= 0 else 0
+        elif t < question_end + fix_delay:
             stage = "reveal"
             remain = None
             progress = 1
@@ -356,10 +388,10 @@ def render(folder):
         im = frame(
             p,
             stage,
-            remain if t >= intro else None,
+            remain if t_body >= intro else None,
             (t * 0.65) % 1,
             progress,
-            p["intro"] if t < intro else None,
+            p["intro"] if t < greeting + intro else None,
         )
         name = f"frames/{index:04d}.jpg"
         im.save(folder / name, quality=88)
@@ -378,6 +410,11 @@ def render(folder):
             out.setnchannels(channels)
             out.setsampwidth(width)
             out.setframerate(rate)
+            if greeting:
+                with wave.open(str(intro_te_path)) as g:
+                    if g.getparams()[:3] != (channels, width, rate):
+                        raise ValueError("Telugu intro format differs")
+                    out.writeframes(g.readframes(g.getnframes()))
             out.writeframes(a.readframes(a.getnframes()))
             out.writeframes(bytes(decision * rate * channels * width))
             out.writeframes(b.readframes(b.getnframes()))
@@ -386,11 +423,16 @@ def render(folder):
                     if c.getparams()[:3] != (channels, width, rate):
                         raise ValueError("Fix voice format differs")
                     out.writeframes(c.readframes(c.getnframes()))
+            if signoff:
+                with wave.open(str(fix_te_path)) as s:
+                    if s.getparams()[:3] != (channels, width, rate):
+                        raise ValueError("Telugu outro format differs")
+                    out.writeframes(s.readframes(s.getnframes()))
             out.writeframes(bytes(int(0.6 * rate) * channels * width))
     if p.get("sound_cues"):
         from .sound import mix
 
-        mix(folder / "speech.wav", intro, decision)
+        mix(folder / "speech.wav", greeting + intro, decision)
     subprocess.run(
         [
             "ffmpeg",

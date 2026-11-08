@@ -5,13 +5,49 @@ import re
 from . import scenarios, cloudflare
 from .store import now
 
-REVIEW_VERSION = 14
+REVIEW_VERSION = 15
+
+
+def check_absence_labels(p):
+    """An absent-config label must not simply restate a missing-config answer."""
+    absence = re.compile(
+        r"\b(?:no|missing|absent|without|lacks?|unset|unconfigured)\b", re.I
+    )
+    answer = p["answer"]
+    if not absence.search(answer):
+        return
+    from .lab_visual import evidence
+
+    def strings(value):
+        if isinstance(value, str):
+            yield value
+        elif isinstance(value, dict):
+            for item in value.values():
+                yield from strings(item)
+        elif isinstance(value, list):
+            for item in value:
+                yield from strings(item)
+
+    def terms(value):
+        return {
+            w
+            for w in re.findall(r"[a-z0-9]+", absence.sub(" ", value).lower())
+            if len(w) >= 3
+            and w not in {"the", "and", "for", "with", "this", "that", "not"}
+        }
+
+    for label in strings(evidence(p)):
+        if absence.search(label) and terms(label) & terms(answer):
+            raise ValueError(
+                "Diagram restates the missing-configuration answer; show raw evidence instead"
+            )
 
 
 def layout(p):
     from .lab_visual import validate as validate_visual
 
     validate_visual(p)
+    check_absence_labels(p)
     from .visual import F
     from .render import wrap
 

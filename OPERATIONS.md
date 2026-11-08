@@ -75,8 +75,12 @@ or truncated heading. News articles can supply industry education or research le
 must use primary technical documentation. Current industry education remains
 separate from exam practice.
 
+An absence label such as "No DNS" paired with a missing-DNS answer is also
+rejected directly, even if the model approves it. Raw technical comparisons
+remain eligible. Reviewed text reserves receive the same layout/label checks.
+
 Article extraction prioritizes the explicit article body over related-post
-cards. Source audit version 8 and editorial review version 14 replace older
+cards. Source audit version 8 and editorial review version 15 replace older
 pass flags for upcoming media. Old source reserves are not selected; queued
 unsubmitted Reels are rechecked with their existing audio before publication.
 Historical publications and uncertain submission identities remain intact.

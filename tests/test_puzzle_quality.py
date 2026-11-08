@@ -5,6 +5,34 @@ from cyberquiz.quality import review
 
 
 class PuzzleQualityTests(unittest.TestCase):
+    def test_missing_dns_label_cannot_restate_the_correct_option(self):
+        from cyberquiz.quality import check_absence_labels
+
+        p = {"answer": "PC lacks DNS server address"}
+        with patch(
+            "cyberquiz.lab_visual.evidence",
+            return_value={"nodes": [{"details": ["IP 10.0.0.20/24", "No DNS"]}]},
+        ):
+            with self.assertRaisesRegex(ValueError, "restates"):
+                check_absence_labels(p)
+
+    def test_no_router_is_not_the_answer_to_a_vlan_comparison(self):
+        from cyberquiz.quality import check_absence_labels
+
+        with patch(
+            "cyberquiz.lab_visual.evidence",
+            return_value={"details": ["No router", "VLAN 10", "VLAN 20"]},
+        ):
+            check_absence_labels({"answer": "Different VLANs"})
+
+    def test_negative_observation_does_not_restate_an_unrelated_missing_setting(self):
+        from cyberquiz.quality import check_absence_labels
+
+        with patch(
+            "cyberquiz.lab_visual.evidence", return_value={"details": ["No UDP reply"]}
+        ):
+            check_absence_labels({"answer": "Missing firewall permit"})
+
     def test_rejected_opening_has_one_rewrite_without_relaxing_review(self):
         from cyberquiz.editorial import review_opening
 

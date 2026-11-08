@@ -716,6 +716,18 @@ def pool(db, excluded=()):
             novelty.check(db, scene)
         except ValueError:
             continue
+        if scene.get("ready_plan"):
+            from .quality import layout
+
+            try:
+                layout(scene["ready_plan"])
+            except ValueError:
+                db.execute(
+                    "UPDATE source_attempts SET status='held_quality' WHERE id=?",
+                    (row[0],),
+                )
+                db.commit()
+                continue
         result.append(scene)
     return result
 

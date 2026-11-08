@@ -308,7 +308,7 @@ def recover(db):
 def refresh_visuals(db, job=None):
     """Upgrade unsubmitted queued media using its existing narration, never a paid call."""
     from .lab_visual import VERSION
-    from .quality import layout, artifact
+    from .quality import layout, artifact, review, REVIEW_VERSION
     from .visual import render
 
     with worker_lock():
@@ -332,6 +332,39 @@ def refresh_visuals(db, job=None):
                 )
                 db.commit()
                 continue
+            if (
+                p.get("quality", {}).get("review_version") != REVIEW_VERSION
+                and not row["container_id"]
+                and not row["media_id"]
+            ):
+                try:
+                    revised = review(
+                        db, row["id"] + ":policy:" + str(REVIEW_VERSION), p
+                    )
+                except ValueError as exc:
+                    revised = {
+                        "passed": False,
+                        "review_version": REVIEW_VERSION,
+                        "editorial": {"issues": [str(exc)]},
+                    }
+                revised["artifact"] = p.get("quality", {}).get("artifact", {})
+                p["quality"] = revised
+                if not revised["passed"]:
+                    db.execute(
+                        "UPDATE jobs SET status='held_quality',approved=0,plan=?,error=? WHERE id=?",
+                        (
+                            json.dumps(p),
+                            "Current editorial review rejected: "
+                            + str(revised.get("editorial", {}).get("issues", []))[:240],
+                            row["id"],
+                        ),
+                    )
+                    db.commit()
+                    continue
+                db.execute(
+                    "UPDATE jobs SET plan=? WHERE id=?", (json.dumps(p), row["id"])
+                )
+                db.commit()
             if (
                 p.get("diagram", {}).get("kind") != "config"
                 or p.get("quality", {})

@@ -8,7 +8,7 @@ from collections import Counter
 from cyberquiz.scenarios import bank, plan
 from cyberquiz.clean_visual import frame
 from cyberquiz.lab_visual import evidence, VERSION
-from cyberquiz.quality import layout
+from cyberquiz.quality import layout, REVIEW_VERSION
 from cyberquiz.store import connect, new_job
 
 
@@ -97,6 +97,10 @@ class QueuedVisualUpgradeTests(unittest.TestCase):
                 ),
                 patch("cyberquiz.visual.render") as render,
                 patch(
+                    "cyberquiz.quality.review",
+                    return_value={"passed": True, "review_version": REVIEW_VERSION},
+                ) as editorial,
+                patch(
                     "cyberquiz.quality.artifact",
                     return_value={
                         "decode_ok": True,
@@ -109,6 +113,7 @@ class QueuedVisualUpgradeTests(unittest.TestCase):
                 refresh_visuals(db)
                 refresh_visuals(db)
                 render.assert_called_once_with(folder)
+                editorial.assert_called_once()
                 free_voice.assert_not_called()
                 paid_voice.assert_not_called()
             saved = db.execute(

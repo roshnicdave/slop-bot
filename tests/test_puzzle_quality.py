@@ -39,7 +39,11 @@ class PuzzleQualityTests(unittest.TestCase):
 
         def respond(db, operation, messages, **kwargs):
             return (
-                {"restates_option": None}
+                {
+                    "restates_option": None,
+                    "diagram_restates_option": None,
+                    "technical_inference": True,
+                }
                 if operation.endswith(":title-review")
                 else solver
             )
@@ -110,7 +114,7 @@ class PuzzleQualityTests(unittest.TestCase):
             self.assertFalse(review(None, "test", p)["passed"])
             model.assert_called_once()
             candidate = model.call_args.args[2][1]["content"]
-            self.assertNotIn('"diagram"', candidate)
+            self.assertIn('"diagram"', candidate)
             self.assertNotIn('"correct"', candidate)
 
     def test_statement_only_opening_cannot_reach_the_reviewer(self):
@@ -127,3 +131,23 @@ class PuzzleQualityTests(unittest.TestCase):
         p["intro"] = "Both links are green."
         with self.assertRaisesRegex(ValueError, "narration"):
             review(None, "test", p)
+
+    def test_diagram_that_repeats_a_choice_is_rejected_before_solving(self):
+        p = plan(vlan(), {}, "test")
+        with patch(
+            "cyberquiz.quality.cloudflare.llm",
+            return_value={
+                "restates_option": None,
+                "diagram_restates_option": p["answer"],
+                "technical_inference": False,
+            },
+        ) as model:
+            self.assertFalse(review(None, "test", p)["passed"])
+            model.assert_called_once()
+
+    def test_missing_diagram_audit_cannot_reuse_an_old_title_pass(self):
+        p = plan(vlan(), {}, "test")
+        with patch(
+            "cyberquiz.quality.cloudflare.llm", return_value={"restates_option": None}
+        ):
+            self.assertFalse(review(None, "test", p)["passed"])

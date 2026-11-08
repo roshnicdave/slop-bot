@@ -107,10 +107,14 @@ def _publish(db, job, *, immediate=False):
         p = json.loads(row["plan"])
     if p.get("visual"):
         from .scenarios import validate
-        from .quality import layout
+        from .quality import layout, REVIEW_VERSION
 
         validate(p)
         layout(p)
+        if p.get("quality", {}).get("review_version") != REVIEW_VERSION:
+            raise ValueError(
+                "Queued Reel needs the current editorial review before publication"
+            )
         if not p.get("quality", {}).get("passed") or not p.get("quality", {}).get(
             "artifact", {}
         ).get("decode_ok"):

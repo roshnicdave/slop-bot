@@ -26,8 +26,36 @@ class Document(HTMLParser):
         self.parts = {"article": [], "main": [], "all": []}
         self.links = []
         self.anchor = None
+        self.content_blocks = []
+        self.scopes = []
 
     def handle_starttag(self, tag, attrs):
+        attributes = dict(attrs)
+        tokens = set(attributes.get("class", "").split())
+        body = attributes.get("itemprop") == "articleBody" or bool(
+            tokens
+            & {"entry-content", "post-content", "article-content", "article-body"}
+        )
+        block = [] if body else None
+        if body:
+            self.content_blocks.append(block)
+        if tag not in (
+            "area",
+            "base",
+            "br",
+            "col",
+            "embed",
+            "hr",
+            "img",
+            "input",
+            "link",
+            "meta",
+            "param",
+            "source",
+            "track",
+            "wbr",
+        ):
+            self.scopes.append((tag, block))
         if tag in ("script", "style", "nav", "header", "footer"):
             self.skip += 1
         if tag == "article":
@@ -41,6 +69,9 @@ class Document(HTMLParser):
         if self.skip:
             return
         self.parts["all"].append(value)
+        for _, block in self.scopes:
+            if block is not None:
+                block.append(value)
         if self.article:
             self.parts["article"].append(value)
         if self.main:
@@ -57,6 +88,13 @@ class Document(HTMLParser):
         if tag in ("p", "li", "h1", "h2", "h3", "pre", "div"):
             for parts in self.parts.values():
                 parts.append("\n")
+            for _, block in self.scopes:
+                if block is not None:
+                    block.append("\n")
+        for index in range(len(self.scopes) - 1, -1, -1):
+            if self.scopes[index][0] == tag:
+                del self.scopes[index:]
+                break
         if tag == "article":
             self.article = max(0, self.article - 1)
         if tag == "main":
@@ -65,11 +103,17 @@ class Document(HTMLParser):
             self.skip = max(0, self.skip - 1)
 
     def paragraphs(self):
+        content = sorted(
+            ("".join(block) for block in self.content_blocks), key=len, reverse=True
+        )
         body = next(
             (
-                "".join(self.parts[k])
-                for k in ("article", "main", "all")
-                if len("".join(self.parts[k]).strip()) > 300
+                value
+                for value in [
+                    *content,
+                    *("".join(self.parts[k]) for k in ("main", "article", "all")),
+                ]
+                if len(value.strip()) > 300
             ),
             "",
         )

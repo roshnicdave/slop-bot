@@ -9,6 +9,43 @@ from cyberquiz.instagram import publish, MetaAPIError
 
 
 class MetaRejectionTests(unittest.TestCase):
+    def test_a_historical_quality_pass_cannot_submit_a_new_reel(self):
+        from cyberquiz.scenarios import plan, vlan
+        from cyberquiz.quality import REVIEW_VERSION
+
+        with tempfile.TemporaryDirectory() as folder:
+            b = connect(Path(folder) / "state.sqlite")
+            job = new_job(b, "test")
+            p = plan(vlan(), {}, job)
+            p["quality"] = {
+                "passed": True,
+                "review_version": REVIEW_VERSION - 1,
+                "artifact": {"decode_ok": True},
+            }
+            b.execute(
+                "UPDATE jobs SET status='rendered',approved=1,plan=? WHERE id=?",
+                (json.dumps(p), job),
+            )
+            b.commit()
+            with (
+                patch(
+                    "cyberquiz.instagram.config",
+                    return_value={
+                        "publishing_enabled": True,
+                        "public_media_base_url": "https://example.com/media",
+                    },
+                ),
+                patch(
+                    "cyberquiz.instagram.secrets",
+                    return_value={"IG_ACCESS_TOKEN": "test", "IG_USER_ID": "test"},
+                ),
+                patch("cyberquiz.instagram.graph") as graph,
+            ):
+                with self.assertRaisesRegex(ValueError, "current editorial review"):
+                    publish(b, job, immediate=True)
+                graph.assert_not_called()
+            b.close()
+
     def test_creation_rejection_returns_job_to_ready_but_transport_failure_remains_uncertain(
         self,
     ):

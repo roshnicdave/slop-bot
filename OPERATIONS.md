@@ -63,6 +63,24 @@ block the ready publication queue.
 
 ## Editorial recovery
 
+Pre-reveal review inspects the title, narration, options and visible diagram
+together, without the answer key. A missing-requirement label repeated as an
+answer is a giveaway; interpreting raw configurations with a protocol rule is
+a puzzle. Source-grounded drafts must quote the actual documented rule and
+explain its application. An exam label additionally requires a specific tested
+skill and no specialist prerequisite outside that objective. Broad keyword
+overlap does not establish exam relevance. Audits receive the actual blueprint
+bullets and must quote the applicable skill, rather than only seeing a broad
+or truncated heading. News articles can supply industry education or research leads, but an exam quiz
+must use primary technical documentation. Current industry education remains
+separate from exam practice.
+
+Article extraction prioritizes the explicit article body over related-post
+cards. Source audit version 8 and editorial review version 14 replace older
+pass flags for upcoming media. Old source reserves are not selected; queued
+unsubmitted Reels are rechecked with their existing audio before publication.
+Historical publications and uncertain submission identities remain intact.
+
 Daily planning receives a bounded structured projection of research, with full evidence
 retained separately. Confirmed completed planning results are reused after local parsing
 fixes; pending or uncertain provider operations are never replayed. Local preflight

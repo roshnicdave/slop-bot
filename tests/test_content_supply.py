@@ -129,9 +129,12 @@ class ContentSupplyTests(unittest.TestCase):
 
     def generated(self, reject_first=False, industry=False):
         source = {
-            "excerpt": "TLS protects the client leg. HTTP on the second leg remains unencrypted.",
+            "excerpt": "TLS protects the client leg. HTTP traffic on the second network leg remains completely unencrypted.",
             "passages": [
-                {"id": 7, "text": "HTTP on the second leg remains unencrypted."}
+                {
+                    "id": 7,
+                    "text": "HTTP traffic on the second network leg remains completely unencrypted.",
+                }
             ],
             "retrieved": "2026-01-01",
             "sha256": "test",
@@ -146,6 +149,14 @@ class ContentSupplyTests(unittest.TestCase):
                 "exam_relevant",
             ),
             True,
+        )
+        audit.update(
+            rule_quote="HTTP traffic on the second network leg remains completely unencrypted.",
+            rule_application="HTTP on the origin hop leaves that connection unencrypted.",
+            tests_named_skill=True,
+            requires_outside_exam_knowledge=False,
+            tested_skill="Protect data in transit",
+            exam_anchor="Protect data in transit",
         )
         from cyberquiz.quality import REVIEW_VERSION
 
@@ -176,6 +187,7 @@ class ContentSupplyTests(unittest.TestCase):
                         "cert": "Security+",
                         "objective": "3.2",
                         "title": "Apply security principles",
+                        "outline": "Protect data in transit using encryption and secure protocols.",
                     }
                 ],
             ),
@@ -187,7 +199,9 @@ class ContentSupplyTests(unittest.TestCase):
                         "title": "TLS connections",
                         "source": "Cloudflare",
                         "published": "2026-11-05T00:00:00+00:00",
-                        "evidence_type": "primary_source_topic",
+                        "evidence_type": "primary_source_topic"
+                        if industry
+                        else "primary_documentation",
                     }
                 ],
             ),
@@ -225,10 +239,94 @@ class ContentSupplyTests(unittest.TestCase):
         scene = self.generated()
         self.assertEqual(scene["content_scope"], "exam")
         self.assertEqual(scene["provenance"]["published"], "2026-11-05T00:00:00+00:00")
-        self.assertEqual(scene["provenance"]["source_type"], "primary_source_topic")
+        self.assertEqual(scene["provenance"]["source_type"], "primary_documentation")
         scene["provenance"]["review"]["exam_relevant"] = False
         with self.assertRaisesRegex(ValueError, "factual review failed"):
             discovery.validate(scene)
+
+    def test_exam_keyword_match_does_not_allow_outside_specialist_knowledge(self):
+        scene = self.generated()
+        audit = scene["provenance"]["review"]
+        audit["requires_outside_exam_knowledge"] = True
+        with self.assertRaisesRegex(ValueError, "specialist prerequisites"):
+            discovery.validate(scene)
+        audit["requires_outside_exam_knowledge"] = False
+        audit["tests_named_skill"] = False
+        with self.assertRaisesRegex(ValueError, "named exam skill"):
+            discovery.validate(scene)
+
+    def test_rule_audit_cannot_approve_a_rule_absent_from_quoted_source(self):
+        scene = self.generated()
+        scene["provenance"]["review"]["rule_quote"] = (
+            "Some unrelated invented rule cannot stand in for primary evidence."
+        )
+        with self.assertRaisesRegex(ValueError, "exact documented technical rule"):
+            discovery.validate(scene)
+
+    def test_exam_alignment_cannot_quote_an_invented_blueprint_skill(self):
+        scene = self.generated()
+        scene["provenance"]["review"]["exam_anchor"] = (
+            "Authenticate unrelated specialist agents"
+        )
+        with self.assertRaisesRegex(ValueError, "actual blueprint outline"):
+            discovery.validate(scene)
+
+    def test_a_news_article_cannot_be_relabelled_as_exam_practice(self):
+        draft = self.source_draft()
+        with self.assertRaisesRegex(ValueError, "technical documentation"):
+            discovery.compile_scene(
+                draft,
+                {
+                    "passages": [
+                        {
+                            "id": 7,
+                            "text": "HTTP traffic on the second network leg remains completely unencrypted.",
+                        }
+                    ]
+                },
+                {
+                    "url": "https://blog.cloudflare.com/news",
+                    "source": "Cloudflare",
+                    "evidence_type": "primary_source_topic",
+                },
+                [
+                    {
+                        "id": "Security+:3.2",
+                        "cert": "Security+",
+                        "objective": "3.2",
+                        "title": "Apply security principles",
+                    }
+                ],
+                "test",
+            )
+
+    def test_blueprint_outline_keeps_wrapped_title_and_scoped_bullets(self):
+        parsed = curriculum.outlines(
+            "4 .1 Given a scenario, apply common security techniques to\n computing resources.\n • Wireless security settings\n - Authentication protocols\n4.2 Explain asset management\n • Inventory\nCopyright Exam Objectives Version 6.0"
+        )
+        self.assertIn("computing resources.", parsed["4.1"])
+        self.assertIn("Wireless security", parsed["4.1"])
+        self.assertNotIn("Inventory", parsed["4.1"])
+
+    def test_related_article_cards_cannot_replace_the_main_article_body(self):
+        body = (
+            "A technical rule from the real article body explains packet forwarding behavior. "
+            * 6
+        )
+        sidebar = (
+            "Unrelated teaser about artificial intelligence and endpoint telemetry. "
+            * 10
+        )
+        doc = knowledge.Document()
+        doc.feed(
+            '<main><div class="entry-content"><p>'
+            + body
+            + "</p></div><aside><article>"
+            + sidebar
+            + "</article></aside></main>"
+        )
+        self.assertIn(body.strip(), " ".join(doc.paragraphs()))
+        self.assertNotIn("Unrelated teaser", " ".join(doc.paragraphs()))
 
     def test_unknown_objective_is_not_silently_reclassified_as_industry(self):
         draft = self.source_draft()
@@ -353,7 +451,7 @@ class ContentSupplyTests(unittest.TestCase):
         )
         self.assertEqual(
             scene["provenance"]["quotes"],
-            ["HTTP on the second leg remains unencrypted."],
+            ["HTTP traffic on the second network leg remains completely unencrypted."],
         )
         self.assertTrue(scene["ready_plan"]["quality"]["passed"])
         discovery.validate(scene)

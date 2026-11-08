@@ -31,6 +31,66 @@ def parse(text):
     return result
 
 
+def outlines(text):
+    """Retain objective bullets and wrapped headings, not just a broad title."""
+    blocks, current = {}, None
+    for line in text.splitlines():
+        match = re.match(r"^\s*(\d+\s*\.\s*\d+(?:\s*\.\s*[a-z])?)\s+(.{4,})", line)
+        if match:
+            current = re.sub(r"\s+", "", match[1])
+            blocks.setdefault(current, []).append(match[2].strip())
+        elif (
+            current
+            and line.strip()
+            and not re.search(
+                r"Copyright|Certification Exam|Cisco Public|Exam Objectives Version",
+                line,
+            )
+        ):
+            blocks[current].append(" ".join(line.split()))
+    return {key: "\n".join(lines)[:6000] for key, lines in blocks.items()}
+
+
+def describe(db, objective):
+    if objective.get("outline"):
+        return objective
+    row = None
+    heading_scope = ""
+    if db.execute(
+        "SELECT 1 FROM sqlite_master WHERE name='curriculum_outlines'"
+    ).fetchone():
+        rows = db.execute(
+            "SELECT objective,outline FROM curriculum_outlines WHERE cert=? AND (objective=? OR objective LIKE ?) ORDER BY objective",
+            (objective["cert"], objective["objective"], objective["objective"] + ".%"),
+        ).fetchall()
+        if rows:
+            row = ["\n".join(r["outline"] for r in rows)[:6000]]
+            heading_scope = rows[0]["outline"]
+    scope = row[0] if row else ""
+    heading = []
+    for line in heading_scope.splitlines():
+        if line.lstrip().startswith(("•", "-", "o ")) or len(heading) >= 3:
+            break
+        heading.append(line)
+    # A broad heading is not an applicable skill citation when the blueprint
+    # supplies scoped bullets or sub-objectives beneath it.
+    if row and len(rows) > 1:
+        scope = "\n".join(r["outline"] for r in rows[1:])[:6000]
+    else:
+        lines = scope.splitlines()
+        first = next(
+            (i for i, line in enumerate(lines) if line.lstrip().startswith(("•", "-"))),
+            None,
+        )
+        if first is not None:
+            scope = "\n".join(lines[first:])
+    return {
+        **objective,
+        "title": " ".join(heading)[:180] if heading else objective["title"],
+        "outline": scope,
+    }
+
+
 def refresh(db):
     db.execute(
         "CREATE TABLE IF NOT EXISTS curriculum_documents(cert TEXT PRIMARY KEY,url TEXT,sha TEXT,checked TEXT)"
@@ -38,13 +98,19 @@ def refresh(db):
     db.execute(
         "CREATE TABLE IF NOT EXISTS curriculum_topics(cert TEXT,objective TEXT,title TEXT,source TEXT,PRIMARY KEY(cert,objective))"
     )
+    db.execute(
+        "CREATE TABLE IF NOT EXISTS curriculum_outlines(cert TEXT,objective TEXT,outline TEXT,PRIMARY KEY(cert,objective))"
+    )
     db.commit()
     cutoff = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=7)).isoformat()
     for cert, url in config().get("exam_blueprints", BLUEPRINTS).items():
         prior = db.execute(
             "SELECT checked FROM curriculum_documents WHERE cert=?", (cert,)
         ).fetchone()
-        if prior and prior[0] > cutoff:
+        detailed = db.execute(
+            "SELECT 1 FROM curriculum_outlines WHERE cert=? LIMIT 1", (cert,)
+        ).fetchone()
+        if prior and prior[0] > cutoff and detailed:
             continue
         if urlparse(url).hostname not in (
             "learningcontent.cisco.com",
@@ -69,17 +135,22 @@ def refresh(db):
             reader = PdfReader(io.BytesIO(raw))
             if len(reader.pages) > 30:
                 raise ValueError("Blueprint has too many pages")
-            topics = parse(
-                "\n".join(
-                    p.extract_text(extraction_mode="layout") or "" for p in reader.pages
-                )
+            text = "\n".join(
+                p.extract_text(extraction_mode="layout") or "" for p in reader.pages
             )
+            topics = parse(text)
+            detail = outlines(text)
             if len(topics) < 10:
                 raise ValueError("Blueprint did not yield a usable topic map")
             db.execute("DELETE FROM curriculum_topics WHERE cert=?", (cert,))
             db.executemany(
                 "INSERT INTO curriculum_topics VALUES(?,?,?,?)",
                 [(cert, k, v, url) for k, v in topics.items()],
+            )
+            db.execute("DELETE FROM curriculum_outlines WHERE cert=?", (cert,))
+            db.executemany(
+                "INSERT INTO curriculum_outlines VALUES(?,?,?)",
+                [(cert, key, value) for key, value in detail.items()],
             )
             db.execute(
                 "INSERT OR REPLACE INTO curriculum_documents VALUES(?,?,?,?)",

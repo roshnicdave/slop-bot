@@ -1,0 +1,21 @@
+{
+  "observed_at": "2026-11-09",
+  "source": "https://www.instagram.com/reel/DfXbaq6g5nh/",
+  "creator": "guessyourflag",
+  "scope": "Quiz mechanics reference only; keep networking/security subject matter",
+  "video_duration_seconds_observed": 65.6,
+  "visible_counts": {"comments": 175, "reposts": 246},
+  "observations": [
+    "A fixed plain question is immediately visible above a single highlighted country on a clean map.",
+    "A large circular clock near the lower-left of the visual includes a numeral and a colored remaining-time sector; an observed frame showed 1.",
+    "The country name is revealed after the guessing interval. Repeated question/reveal rounds share the same visual grammar."
+  ],
+  "design_hypotheses": [
+    "Prefer one short, immediately understandable networking question when the technical diagram supplies the setup. Use one visible comparison or decision; avoid redundant lead-in sentences.",
+    "Test an obvious side clock and clearly audible synchronized ticks during the thinking interval, then a concise reveal. Preserve accurate technical diagrams, readable choices, the navy palette and a fair solve interval."
+  ],
+  "limitations": [
+    "Audio extraction was unavailable; ticking was reported by the operator, not independently measured from the reference.",
+    "Visible comments/reposts are not verified reach, watch time or proof that a clock, sound or caption caused distribution. A 65.6-second multi-round map quiz is not a matched comparison to one networking puzzle."
+  ]
+}

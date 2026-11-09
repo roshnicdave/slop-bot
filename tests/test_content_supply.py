@@ -711,10 +711,11 @@ class ContentSupplyTests(unittest.TestCase):
                 knowledge.fetch("https://developer.mozilla.org/redirect")
             self.assertEqual(request.call_count, 1)
 
-    def test_initial_editorial_pass_does_not_rewrite_a_verified_question(self):
+    def test_initial_editorial_pass_does_not_rewrite_a_source_authored_question(self):
         from cyberquiz.editorial import craft
 
         p = plan(vlan(), {}, "test")
+        p["family"] = "source-grounded"
         question = p["question"]
         with patch("cyberquiz.editorial.cloudflare.llm") as model:
             result = craft(self.db, "test", p, {})

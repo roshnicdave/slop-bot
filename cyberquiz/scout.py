@@ -64,7 +64,7 @@ def gather(db):
 
     measured = analyze(db)
     observations = []
-    for name in ["quiz-observations.json"]:
+    for name in ["quiz-mechanics.json", "quiz-observations.json"]:
         path = ROOT / "research" / name
         if path.exists():
             observations.append(json.loads(path.read_text()))

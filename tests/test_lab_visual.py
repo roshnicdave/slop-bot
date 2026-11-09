@@ -9,6 +9,7 @@ from cyberquiz.scenarios import bank, plan
 from cyberquiz.clean_visual import frame
 from cyberquiz.lab_visual import evidence, VERSION
 from cyberquiz.quality import layout, REVIEW_VERSION
+from cyberquiz.visual import PRESENTATION_VERSION
 from cyberquiz.store import connect, new_job
 
 
@@ -105,6 +106,7 @@ class QueuedVisualUpgradeTests(unittest.TestCase):
                     return_value={
                         "decode_ok": True,
                         "diagram_renderer_version": VERSION,
+                        "presentation_version": PRESENTATION_VERSION,
                     },
                 ),
                 patch("cyberquiz.cloudflare.voice") as free_voice,

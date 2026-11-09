@@ -72,5 +72,7 @@
   "trend_visual_inspection_enabled": true,
   "cf_editorial_neuron_limit": 1500,
   "cf_drafting_neuron_limit": 5000,
-  "cf_draft_model": "@cf/openai/gpt-oss-120b"
+  "cf_draft_model": "@cf/openai/gpt-oss-120b",
+  "countdown_style": "dial",
+  "tick_level_dbfs": -24
 }

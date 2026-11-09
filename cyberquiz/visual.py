@@ -18,6 +18,7 @@ BLUE = "#dceefa"
 TEAL = "#087f82"
 GREEN = "#15804a"
 RED = "#cb4248"
+PRESENTATION_VERSION = 4
 F = lru_cache(maxsize=100)(font)
 
 
@@ -264,6 +265,18 @@ def preview(plan, folder):
     frame(plan).save(folder / "preview.jpg", quality=95)
 
 
+def scene_times(total, fps, boundaries):
+    """Keep low-cost animation while landing exact frames on voice/cue changes."""
+    return sorted(
+        {
+            0.0,
+            total,
+            *(n / fps for n in range(math.ceil(total * fps))),
+            *(t for t in boundaries if 0 < t < total),
+        }
+    )
+
+
 def render(folder):
     from .lab_visual import VERSION
 
@@ -298,6 +311,8 @@ def render(folder):
         pace_marker.write_text(json.dumps({"speed": speed}))
     intro = duration(folder / "intro.wav")
     decision = p.get("decision_seconds", 5)
+    if type(decision) is not int or not 3 <= decision <= 7:
+        raise ValueError("Solve countdown must be 3-7 whole seconds")
     if p.get("voice_version") == 2:
         reveal_audio = folder / "reveal_voice.wav"
         fix_audio = folder / "fix_voice.wav"
@@ -337,14 +352,19 @@ def render(folder):
     frames.mkdir(exist_ok=True)
     sequence = []
     fps = 8
-    n = math.ceil(total * fps)
+    from .sound import clock_state, tick_times
+
+    times = scene_times(
+        total,
+        fps,
+        [*tick_times(intro, decision), intro + decision, intro + decision + fix_delay],
+    )
+    n = len(times) - 1
     # A bounded 8 fps scene animation encoded at 24 fps: no AI-video spend.
-    for index in range(n):
-        t = index / fps
+    for index, (t, until) in enumerate(zip(times, times[1:])):
         if t < intro + decision:
             stage = "question"
-            remain = max(1, math.ceil(intro + decision - t))
-            progress = max(0, (t - intro) / decision)
+            remain, progress = clock_state(t, intro, decision)
         elif t < intro + decision + fix_delay:
             stage = "reveal"
             remain = None
@@ -356,14 +376,14 @@ def render(folder):
         im = frame(
             p,
             stage,
-            remain if t >= intro else None,
+            remain,
             (t * 0.65) % 1,
             progress,
             p["intro"] if t < intro else None,
         )
         name = f"frames/{index:04d}.jpg"
         im.save(folder / name, quality=88)
-        sequence.append(f"file '{name}'\nduration {1 / fps:.4f}\n")
+        sequence.append(f"file '{name}'\nduration {until - t:.6f}\n")
     concat = folder / "visual.ffconcat"
     concat.write_text(
         "ffconcat version 1.0\n"
@@ -387,10 +407,16 @@ def render(folder):
                         raise ValueError("Fix voice format differs")
                     out.writeframes(c.readframes(c.getnframes()))
             out.writeframes(bytes(int(0.6 * rate) * channels * width))
+    cues = None
     if p.get("sound_cues"):
         from .sound import mix
 
-        mix(folder / "speech.wav", intro, decision)
+        cues = mix(
+            folder / "speech.wav",
+            intro,
+            decision,
+            tick_level_dbfs=p.get("tick_level_dbfs", -24),
+        )
     subprocess.run(
         [
             "ffmpeg",
@@ -473,6 +499,9 @@ def render(folder):
                 "narration_characters": len(p["intro"]) + len(p["outro"]),
                 "animation_fps": fps,
                 "diagram_renderer_version": VERSION,
+                "presentation_version": PRESENTATION_VERSION,
+                "countdown_style": p.get("countdown_style", "dial"),
+                "sound_cues": cues,
                 "segments": segments,
             },
             indent=2,

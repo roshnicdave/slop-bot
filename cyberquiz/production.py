@@ -82,10 +82,12 @@ def _make(db, slot=None, scene_key=None, attempt=0):
         p["id"] = ident
         p["account"] = cfg["account"]
         p["evidence"] = evidence
-        p["design_version"] = 3
+        p["design_version"] = 4
         p["sound_cues"] = True
         p["narration_speed"] = cfg.get("narration_speed", 1.08)
         p["palette"] = cfg.get("palette", "ink")
+        p["countdown_style"] = cfg.get("countdown_style", "dial")
+        p["tick_level_dbfs"] = cfg.get("tick_level_dbfs", -24)
         authored_hook = p.get("hook_strategy", "short diagnostic contrast")
         p["hook_strategy"] = cfg.get("hook_strategy", "short diagnostic contrast")
         from .learning import experiment
@@ -309,7 +311,7 @@ def refresh_visuals(db, job=None):
     """Upgrade unsubmitted queued media using its existing narration, never a paid call."""
     from .lab_visual import VERSION
     from .quality import layout, artifact, review, REVIEW_VERSION
-    from .visual import render
+    from .visual import render, PRESENTATION_VERSION
 
     with worker_lock():
         rows = db.execute(
@@ -365,18 +367,18 @@ def refresh_visuals(db, job=None):
                     "UPDATE jobs SET plan=? WHERE id=?", (json.dumps(p), row["id"])
                 )
                 db.commit()
-            if (
-                p.get("diagram", {}).get("kind") != "config"
-                or p.get("quality", {})
-                .get("artifact", {})
-                .get("diagram_renderer_version", 0)
-                >= VERSION
-            ):
+            saved = p.get("quality", {}).get("artifact", {})
+            old_diagram = (
+                p.get("diagram", {}).get("kind") == "config"
+                and saved.get("diagram_renderer_version", 0) < VERSION
+            )
+            old_presentation = (
+                saved.get("presentation_version", 0) < PRESENTATION_VERSION
+            )
+            if not (old_diagram or old_presentation):
                 continue
             if row["container_id"] or row["media_id"]:
-                raise ValueError(
-                    "Submitted media needs reconciliation before its visual can change"
-                )
+                continue  # Meta may already be consuming this exact media file.
             folder = ROOT / "out" / row["id"]
             try:
                 scenarios.validate(p)
@@ -391,6 +393,14 @@ def refresh_visuals(db, job=None):
                     (row["id"],),
                 )
                 db.commit()
+                p["design_version"] = PRESENTATION_VERSION
+                p["countdown_style"] = p.get(
+                    "countdown_style", config().get("countdown_style", "dial")
+                )
+                p["tick_level_dbfs"] = p.get(
+                    "tick_level_dbfs", config().get("tick_level_dbfs", -24)
+                )
+                (folder / "plan.json").write_text(json.dumps(p, indent=2))
                 render(folder)
                 p["quality"]["artifact"] = artifact(folder)
                 (folder / "plan.json").write_text(json.dumps(p, indent=2))

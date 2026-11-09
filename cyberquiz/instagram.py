@@ -90,21 +90,18 @@ def _publish(db, job, *, immediate=False):
     folder = ROOT / "out" / job
     p = json.loads(row["plan"])
     from .lab_visual import VERSION
+    from .visual import PRESENTATION_VERSION
 
-    if (
+    saved = p.get("quality", {}).get("artifact", {})
+    old_diagram = (
         p.get("diagram", {}).get("kind") == "config"
-        and p.get("quality", {}).get("artifact", {}).get("diagram_renderer_version", 0)
-        < VERSION
-    ):
-        if row["container_id"] or row["media_id"]:
-            raise ValueError("Submitted media needs visual reconciliation")
-        from .production import refresh_visuals
-
-        refresh_visuals(db, job)
-        row = db.execute("SELECT * FROM jobs WHERE id=?", (job,)).fetchone()
-        if row["status"] != "rendered" or not row["approved"]:
-            raise ValueError("Visual refresh did not pass")
-        p = json.loads(row["plan"])
+        and saved.get("diagram_renderer_version", 0) < VERSION
+    )
+    old_presentation = (
+        p.get("visual") and saved.get("presentation_version", 0) < PRESENTATION_VERSION
+    )
+    if old_diagram and (row["container_id"] or row["media_id"]):
+        raise ValueError("Submitted media needs visual reconciliation")
     if p.get("visual"):
         from .scenarios import validate
         from .quality import layout, REVIEW_VERSION
@@ -115,6 +112,19 @@ def _publish(db, job, *, immediate=False):
             raise ValueError(
                 "Queued Reel needs the current editorial review before publication"
             )
+    if (
+        (old_diagram or old_presentation)
+        and not row["container_id"]
+        and not row["media_id"]
+    ):
+        from .production import refresh_visuals
+
+        refresh_visuals(db, job)
+        row = db.execute("SELECT * FROM jobs WHERE id=?", (job,)).fetchone()
+        if row["status"] != "rendered" or not row["approved"]:
+            raise ValueError("Visual refresh did not pass")
+        p = json.loads(row["plan"])
+    if p.get("visual"):
         if not p.get("quality", {}).get("passed") or not p.get("quality", {}).get(
             "artifact", {}
         ).get("decode_ok"):

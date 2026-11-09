@@ -36,6 +36,23 @@ Use normal Telegram messages such as “post the next reel now”, “show the l
 
 ## Topic-wide discovery
 
+Presentation version 4 uses a larger side dial, synchronized locally generated
+clock ticks, and a quieter reveal cue under the answer narration. The countdown
+starts when the opening voice ends; its real duration is unchanged. Ticks and
+digits share the same timeline. No sound library, generative image or new paid
+voice call is needed to refresh unsubmitted media with its saved narration.
+Known or uncertain Meta submissions retain their existing media identity.
+
+Authoring allows a direct question on one line or wrapped across two. A setup
+sentence is optional when the diagram already supplies the context. Timer style
+(`dial`/`bar`) and bounded tick level can be proposed by the existing one-factor
+experiment planner. Growth observations include presentation version, timer,
+tick setting and opening length. Reference mechanics are hypotheses, not proof
+of causation or a reason to copy a reference's subject matter.
+Classic fallback cases get one optional free opening edit before voice creation;
+if that allowance is unavailable they retain the verified question and continue
+through the normal mandatory quality checks.
+
 Creative planning receives recent own-Reel questions, snapshot ages, views,
 reach, watch time, and rates of likes/shares/saves alongside the existing
 comparable 72-hour evidence. Early results suggest experiments; they do not

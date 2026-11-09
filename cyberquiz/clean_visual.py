@@ -125,16 +125,51 @@ def diagram(d, p, fixed):
     # No animated packet is invented where the protocol would not emit one.
 
 
+def clock(d, remaining, progress, dark):
+    x, y, radius = 120, 1056, 43
+    track = "#30465d" if dark else "#ccd7df"
+    accent = "#ffca68" if remaining > 2 else "#ff937e"
+    d.ellipse(
+        (x - radius, y - radius, x + radius, y + radius),
+        fill="#1c3046" if dark else "white",
+        outline=track,
+        width=7,
+    )
+    end = -90 + 360 * max(0, min(1, 1 - progress))
+    d.arc(
+        (x - radius, y - radius, x + radius, y + radius), -90, end, fill=accent, width=7
+    )
+    face = F(34, True)
+    label = str(max(1, int(remaining)))
+    box = d.textbbox((0, 0), label, font=face)
+    d.text(
+        (x - face.getlength(label) / 2, y - (box[3] - box[1]) / 2 - box[1]),
+        label,
+        font=face,
+        fill="#f7fafc" if dark else INK,
+    )
+
+
 def frame(p, stage="question", remaining=None, phase=0, progress=0, subtitle=None):
     dark = p.get("palette") == "ink"
     fg = "#f7fafc" if dark else INK
     im = Image.new("RGB", (720, 1280), "#101c2b" if dark else "#f4f6f8")
     d = ImageDraw.Draw(im)
-    for n, line in enumerate(p["question"].split("\n")):
+    lines = p["question"].split("\n")
+    for n, line in enumerate(lines):
         size = 43
         while F(size, True).getlength(line) > 590:
             size -= 1
-        text(d, line, 360, 177 + n * 57, size, fg, True, center=True)
+        text(
+            d,
+            line,
+            360,
+            (205 if len(lines) == 1 else 177) + n * 57,
+            size,
+            fg,
+            True,
+            center=True,
+        )
     if dark and p["diagram"]["kind"] in ("switch", "flow"):
         d.rounded_rectangle((60, 366, 660, 623), radius=16, fill="white")
     diagram(d, p, stage == "fix")
@@ -168,24 +203,29 @@ def frame(p, stage="question", remaining=None, phase=0, progress=0, subtitle=Non
                 size -= 1
             text(d, answer, 144, y + 16, size, GREEN if correct else fg, True)
         if stage == "question":
-            d.rounded_rectangle((74, 1020, 580, 1026), radius=3, fill="#edf1f4")
-            d.rounded_rectangle(
-                (74, 1020, 74 + max(1, int(506 * (1 - progress))), 1026),
-                radius=3,
-                fill="#ffca68" if dark else "#2c718f",
-            )
-            if remaining is not None:
-                text(
-                    d,
-                    str(max(1, int(remaining))) + "s",
-                    616,
-                    1002,
-                    24,
-                    fg,
-                    True,
-                    center=True,
+            if p.get("countdown_style", "dial") == "dial":
+                if remaining is not None:
+                    clock(d, remaining, progress, dark)
+                text(d, "Comment your answer.", 395, 1041, 25, fg, True, center=True)
+            else:
+                d.rounded_rectangle((74, 1020, 580, 1026), radius=3, fill="#edf1f4")
+                d.rounded_rectangle(
+                    (74, 1020, 74 + max(1, int(506 * (1 - progress))), 1026),
+                    radius=3,
+                    fill="#ffca68" if dark else "#2c718f",
                 )
-            text(d, "Comment your answer.", 360, 1067, 25, fg, True, center=True)
+                if remaining is not None:
+                    text(
+                        d,
+                        str(max(1, int(remaining))) + "s",
+                        616,
+                        1002,
+                        24,
+                        fg,
+                        True,
+                        center=True,
+                    )
+                text(d, "Comment your answer.", 360, 1067, 25, fg, True, center=True)
         else:
             text(d, p["explanation"], 360, 1020, 24, fg, width=580, center=True)
     return im

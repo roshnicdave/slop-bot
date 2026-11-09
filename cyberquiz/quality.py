@@ -326,6 +326,9 @@ def artifact(folder):
         raise ValueError("Narration is missing or too quiet")
     return {
         "diagram_renderer_version": timing.get("diagram_renderer_version", 0),
+        "presentation_version": timing.get("presentation_version", 0),
+        "countdown_style": timing.get("countdown_style"),
+        "sound_cues": timing.get("sound_cues"),
         "decode_ok": True,
         "duration_seconds": timing["total_seconds"],
         "audio_peak_db": float(peak.group(1)),

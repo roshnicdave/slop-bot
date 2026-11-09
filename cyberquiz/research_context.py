@@ -37,8 +37,9 @@ def project(prompt):
             {
                 "observations": [text(x, 180) for x in ref.get("observations", [])[:3]],
                 "design_hypotheses": [
-                    text(x, 180) for x in ref.get("design_hypotheses", [])[:2]
+                    text(x, 240) for x in ref.get("design_hypotheses", [])[:2]
                 ],
+                "limitations": [text(x, 220) for x in ref.get("limitations", [])[:2]],
             }
         )
     out["inspected_reference_examples"] = refs

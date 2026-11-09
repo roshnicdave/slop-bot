@@ -32,12 +32,24 @@ def growth(db):
         payload, p = json.loads(snap["payload"]), json.loads(job["plan"] or "{}")
         reach = metric(payload, "reach")
         watch = metric(payload, "ig_reels_avg_watch_time")
-        duration = p.get("quality", {}).get("artifact", {}).get("duration_seconds")
+        artifact = p.get("quality", {}).get("artifact", {})
+        duration = artifact.get("duration_seconds")
         entry = {
             "job": job["id"],
             "question": str(p.get("question", ""))[:120],
             "family": p.get("family"),
             "certification": p.get("certification"),
+            "countdown_style": p.get(
+                "countdown_style", artifact.get("countdown_style", "bar")
+            ),
+            "tick_level_dbfs": p.get(
+                "tick_level_dbfs",
+                (artifact.get("sound_cues") or {}).get("tick_level_dbfs"),
+            ),
+            "presentation_version": p.get("quality", {})
+            .get("artifact", {})
+            .get("presentation_version", 0),
+            "opening_lines": len(str(p.get("question", "")).splitlines()),
             "snapshot_age_hours": round(snap["age_hours"], 1),
             "observed_at": snap["observed"],
             "reach": reach,

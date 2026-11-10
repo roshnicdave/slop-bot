@@ -624,7 +624,7 @@ def prepare_candidate(
             )
             if (
                 not isinstance(opening.get("question"), str)
-                or len(opening["question"]) > 32
+                or len(opening["question"]) > 80
             ):
                 raise HeadlineNeedsEdit(
                     "Focused opening edit still exceeds the phone profile"

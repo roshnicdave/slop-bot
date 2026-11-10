@@ -224,7 +224,7 @@ class ContentSupplyTests(unittest.TestCase):
                     {"article_ids": [0]},
                     long,
                     verbose,
-                    {"question": "Which hop is unencrypted?"},
+                    {"question": "Which network hop lacks TLS encryption?"},
                     audit,
                 ]
         if reject_first:
@@ -284,7 +284,10 @@ class ContentSupplyTests(unittest.TestCase):
 
     def test_remaining_long_opening_gets_one_focused_edit_then_full_audit(self):
         scene = self.generated(needs_headline=True)
-        self.assertEqual(scene["question"], "Which hop is unencrypted?")
+        self.assertEqual(
+            scene["question"].replace("\n", " "),
+            "Which network hop lacks TLS encryption?",
+        )
         self.assertEqual(scene["answer"], "Proxy to origin")
         self.assertTrue(scene["provenance"]["review"]["supported"])
 

@@ -164,7 +164,9 @@ class ContentSupplyTests(unittest.TestCase):
             "objective_id": "Security+:3.2",
         }
 
-    def generated(self, reject_first=False, industry=False, needs_copy=False):
+    def generated(
+        self, reject_first=False, industry=False, needs_copy=False, needs_headline=False
+    ):
         source = {
             "excerpt": "TLS protects the client leg. HTTP traffic on the second network leg remains completely unencrypted.",
             "passages": [
@@ -203,7 +205,7 @@ class ContentSupplyTests(unittest.TestCase):
             draft["objective_id"] = None
             audit["exam_relevant"] = False
         responses = [{"article_ids": [0]}, draft, audit]
-        if needs_copy:
+        if needs_copy or needs_headline:
             long = copy.deepcopy(draft)
             long["answer"] = (
                 "The hop from the intermediate proxy to its origin server is not protected by TLS"
@@ -213,6 +215,18 @@ class ContentSupplyTests(unittest.TestCase):
                 "Another long redundant label",
             ]
             responses = [{"article_ids": [0]}, long, draft, audit]
+            if needs_headline:
+                verbose = copy.deepcopy(draft)
+                verbose["question_lines"] = [
+                    "Which connection among all the network connections in this pictured diagram is not protected by TLS encryption?"
+                ]
+                responses = [
+                    {"article_ids": [0]},
+                    long,
+                    verbose,
+                    {"question": "Which hop is unencrypted?"},
+                    audit,
+                ]
         if reject_first:
             responses = [
                 {"article_ids": [0]},
@@ -267,6 +281,12 @@ class ContentSupplyTests(unittest.TestCase):
             voice.assert_not_called()
         self.assertIsNotNone(scene)
         return scene
+
+    def test_remaining_long_opening_gets_one_focused_edit_then_full_audit(self):
+        scene = self.generated(needs_headline=True)
+        self.assertEqual(scene["question"], "Which hop is unencrypted?")
+        self.assertEqual(scene["answer"], "Proxy to origin")
+        self.assertTrue(scene["provenance"]["review"]["supported"])
 
     def test_copy_repair_reaches_full_fact_audit_before_becoming_ready(self):
         scene = self.generated(needs_copy=True)

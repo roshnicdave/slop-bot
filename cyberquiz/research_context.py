@@ -7,6 +7,35 @@ def text(value, limit):
     return str(value or "")[:limit]
 
 
+def source_sample(records, limit=8):
+    """Give documentation a place beside news within the same prompt budget."""
+    valid = {
+        p["url"]: p
+        for p in records
+        if isinstance(p, dict)
+        and isinstance(p.get("url"), str)
+        and len(p["url"]) <= 2048
+    }
+    groups = [
+        [
+            p
+            for p in valid.values()
+            if p.get("evidence_type") == "primary_documentation"
+        ],
+        [
+            p
+            for p in valid.values()
+            if p.get("evidence_type") != "primary_documentation"
+        ],
+    ]
+    selected = []
+    while len(selected) < limit and any(groups):
+        for group in groups:
+            if group and len(selected) < limit:
+                selected.append(group.pop(0))
+    return selected
+
+
 def project(prompt):
     out = dict(prompt)
     out["user_preference"] = text(prompt.get("user_preference"), 700)
@@ -17,11 +46,9 @@ def project(prompt):
             "url": p["url"],
             "summary": text(p.get("summary"), 300),
             "published": text(p.get("published"), 60),
+            "source_type": text(p.get("evidence_type"), 50),
         }
-        for p in prompt.get("sources", [])[:8]
-        if isinstance(p, dict)
-        and isinstance(p.get("url"), str)
-        and len(p["url"]) <= 2048
+        for p in source_sample(prompt.get("sources", []))
     ]
     out["recent"] = [
         {"family": text(p.get("family"), 80), "question": text(p.get("question"), 140)}

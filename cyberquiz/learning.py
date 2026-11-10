@@ -34,6 +34,10 @@ def growth(db):
         watch = metric(payload, "ig_reels_avg_watch_time")
         artifact = p.get("quality", {}).get("artifact", {})
         duration = artifact.get("duration_seconds")
+        cues = artifact.get("sound_cues") or {}
+        reveal_at = artifact.get("reveal_at_seconds", cues.get("reveal_at"))
+        ticks = cues.get("tick_times") or []
+        intro = artifact.get("question_voice_seconds", ticks[0] if ticks else None)
         entry = {
             "job": job["id"],
             "question": str(p.get("question", ""))[:120],
@@ -56,11 +60,16 @@ def growth(db):
             "views": metric(payload, "views"),
             "average_watch_seconds": None if watch is None else round(watch / 1000, 3),
             "duration_seconds": duration,
+            "reveal_at_seconds": reveal_at,
+            "question_voice_seconds": intro,
+            "average_watch_minus_reveal_seconds": round(watch / 1000 - reveal_at, 3)
+            if watch is not None and isinstance(reveal_at, (float, int))
+            else None,
             "average_watch_fraction": round(watch / 1000 / duration, 3)
             if watch is not None and isinstance(duration, (float, int)) and duration > 0
             else None,
         }
-        for name in ("likes", "shares", "saved", "follows"):
+        for name in ("likes", "comments", "shares", "saved", "follows"):
             value = metric(payload, name)
             entry[name + "_per_1000_reached"] = (
                 round(1000 * value / reach, 2)
@@ -84,7 +93,7 @@ def growth(db):
         "follower_change": account[0]["followers"] - account[-1]["followers"]
         if len(account) >= 2
         else None,
-        "interpretation": "Different snapshot ages are not a fair ranking. Use early data to propose hypotheses; retain comparable 72-hour results for adoption. Average watch fraction is not completion rate and may include replays. Missing follows are unavailable, not zero; account follower changes cannot be attributed to individual Reels. Shares are not an isolated DM-send metric.",
+        "interpretation": "Different snapshot ages are not a fair ranking. Use early data for hypotheses; use comparable 72-hour results for adoption. Average watch fraction is not completion rate and may include replays. Average watch minus reveal time suggests a pacing hypothesis, not a retention curve or the fraction who saw the answer. Missing follows are unknown, not zero; account follower changes cannot be attributed to individual Reels. Shares are not isolated DM sends.",
     }
 
 

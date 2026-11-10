@@ -59,6 +59,43 @@ class GrowthTests(unittest.TestCase):
 
         self.assertEqual(read(self.db, "performance")["recent_posts"], [post])
 
+    def test_payoff_timing_survives_media_deletion_without_inventing_retention(self):
+        job = new_job(self.db, "timing")
+        p = {
+            "question": "Why is HTTPS blocked?",
+            "quality": {
+                "artifact": {
+                    "duration_seconds": 18,
+                    "sound_cues": {
+                        "reveal_at": 8.4,
+                        "tick_times": [3.4, 4.4, 5.4, 6.4, 7.4],
+                    },
+                }
+            },
+        }
+        self.db.execute(
+            "UPDATE jobs SET status='published',media_id='timed',published_at=?,plan=? WHERE id=?",
+            ("2026-11-09T20:35:00+00:00", json.dumps(p), job),
+        )
+        payload = {
+            k: {"data": [{"total_value": {"value": v}}]}
+            for k, v in {
+                "reach": 300,
+                "ig_reels_avg_watch_time": 4800,
+                "comments": 3,
+            }.items()
+        }
+        self.db.execute(
+            "INSERT INTO metrics VALUES('timed',?,6,?)",
+            ("2026-11-10T02:35:00+00:00", json.dumps(payload)),
+        )
+        post = growth(self.db)["recent_posts"][0]
+        self.assertEqual(post["question_voice_seconds"], 3.4)
+        self.assertEqual(post["reveal_at_seconds"], 8.4)
+        self.assertEqual(post["average_watch_minus_reveal_seconds"], -3.6)
+        self.assertEqual(post["comments_per_1000_reached"], 10)
+        self.assertNotIn("completion_rate", post)
+
     def test_account_growth_is_daily_and_not_per_reel_attribution(self):
         with (
             patch(

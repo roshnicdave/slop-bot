@@ -8,6 +8,59 @@ from cyberquiz.store import connect, now
 
 
 class ResearchBudgetTests(unittest.TestCase):
+    def test_scout_can_decline_irrelevant_news_without_fabricating_an_idea(self):
+        from cyberquiz.scout import _daily
+
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            (root / "data").mkdir()
+            db = connect(root / "db")
+            self.addCleanup(db.close)
+            evidence = {
+                "records": [],
+                "social": {},
+                "reference_observations": [],
+                "own_metrics": {"formats": {}},
+            }
+            with (
+                patch("cyberquiz.scout.ROOT", root),
+                patch("cyberquiz.scout.gather", return_value=evidence),
+                patch(
+                    "cyberquiz.scout._planning_call",
+                    return_value={
+                        "ideas": [],
+                        "limitations": "No useful new technical lesson today",
+                    },
+                ),
+            ):
+                self.assertEqual(_daily(db)["ideas"], [])
+
+    def test_news_at_front_of_feed_cannot_hide_all_documentation(self):
+        from cyberquiz.research_context import project
+
+        news = [
+            {
+                "url": "https://example.com/news/" + str(i),
+                "title": "News",
+                "evidence_type": "primary_source_topic",
+            }
+            for i in range(12)
+        ]
+        docs = [
+            {
+                "url": "https://example.com/docs/" + str(i),
+                "title": "Documentation",
+                "evidence_type": "primary_documentation",
+            }
+            for i in range(12)
+        ]
+        view = project({"sources": news + docs})
+        self.assertEqual(len(view["sources"]), 8)
+        self.assertEqual(
+            sum(p["source_type"] == "primary_documentation" for p in view["sources"]), 4
+        )
+        self.assertEqual(view["sources"][0]["url"], docs[0]["url"])
+
     def test_large_unicode_research_is_structurally_packed_under_provider_limit(self):
         url = "https://example.com/article/" + "x" * 1300
         prompt = {

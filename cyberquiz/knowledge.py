@@ -31,7 +31,8 @@ class Document(HTMLParser):
 
     def handle_starttag(self, tag, attrs):
         attributes = dict(attrs)
-        tokens = set(attributes.get("class", "").split())
+        # Boolean HTML attributes are valid and HTMLParser represents them as None.
+        tokens = set((attributes.get("class") or "").split())
         body = attributes.get("itemprop") == "articleBody" or bool(
             tokens
             & {"entry-content", "post-content", "article-content", "article-body"}
@@ -63,7 +64,7 @@ class Document(HTMLParser):
         if tag == "main":
             self.main += 1
         if tag == "a" and not self.skip:
-            self.anchor = [dict(attrs).get("href", ""), []]
+            self.anchor = [attributes.get("href") or "", []]
 
     def handle_data(self, value):
         if self.skip:

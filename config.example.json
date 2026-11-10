@@ -73,6 +73,7 @@
   "cf_editorial_neuron_limit": 1500,
   "cf_drafting_neuron_limit": 5000,
   "cf_draft_model": "@cf/openai/gpt-oss-120b",
+  "experiment_max_days": 14,
   "countdown_style": "dial",
   "tick_level_dbfs": -24
 }

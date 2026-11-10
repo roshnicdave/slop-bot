@@ -331,5 +331,10 @@ def artifact(folder):
         "sound_cues": timing.get("sound_cues"),
         "decode_ok": True,
         "duration_seconds": timing["total_seconds"],
+        "reveal_at_seconds": timing["reveal_at"],
+        "question_voice_seconds": next(
+            (s["end"] for s in timing.get("segments", []) if s["stage"] == "question"),
+            None,
+        ),
         "audio_peak_db": float(peak.group(1)),
     }

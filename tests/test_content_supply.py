@@ -37,6 +37,43 @@ class ContentSupplyTests(unittest.TestCase):
         self.db.commit()
         return job
 
+    def test_boolean_html_attributes_do_not_stop_document_discovery(self):
+        doc = knowledge.Document()
+        text = (
+            "A technical rule with enough supporting context for a worked example. " * 8
+        )
+        doc.feed(
+            "<main class><p class>"
+            + text
+            + '</p><a href>Plain</a><a href="/guide">Guide</a></main>'
+        )
+        self.assertIn(text.strip(), " ".join(doc.paragraphs()))
+        self.assertEqual(doc.links, [("", "Plain"), ("/guide", "Guide")])
+
+    def test_empty_source_selection_does_not_draft_rejected_articles(self):
+        with (
+            patch("cyberquiz.curriculum.goals", return_value=[]),
+            patch("cyberquiz.novelty.recent", return_value=[]),
+            patch(
+                "cyberquiz.knowledge.records",
+                return_value=[
+                    {
+                        "url": "https://blog.cloudflare.com/funding/",
+                        "title": "An ecosystem funding announcement",
+                        "source": "Cloudflare",
+                        "evidence_type": "primary_source_topic",
+                    }
+                ],
+            ),
+            patch("cyberquiz.discovery.inference", return_value={"article_ids": []}),
+            patch("cyberquiz.discovery.read") as read,
+        ):
+            self.assertIsNone(discovery._candidate(self.db, {}))
+            read.assert_not_called()
+        self.assertEqual(
+            self.db.execute("SELECT count(*) FROM source_attempts").fetchone()[0], 0
+        )
+
     def test_lessons_return_after_spacing_but_identical_cases_wait_longer(self):
         p = vlan()
         self.published(p, 0)

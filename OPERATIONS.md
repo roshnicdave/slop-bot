@@ -36,6 +36,18 @@ Use normal Telegram messages such as “post the next reel now”, “show the l
 
 ## Topic-wide discovery
 
+The daily planning view interleaves technical documentation and current news so
+feed order cannot hide the exam material. Source selection is an inclusion list:
+an article the selector omitted is not drafted anyway. Empty selections are
+valid when the available articles have no useful practical lesson. The HTML
+reader accepts boolean attributes, including an empty `class` or `href`.
+
+Growth observations retain question voice duration, answer reveal time and their
+relationship to average watch time after media cleanup. These describe timing,
+not a retention curve or a measured fraction who reached the answer. Experiments
+close as inconclusive after `experiment_max_days` (14 by default) when comparable
+evidence is insufficient; no winner is adopted from that timeout.
+
 Presentation version 4 uses a larger side dial, synchronized locally generated
 clock ticks, and a quieter reveal cue under the answer narration. The countdown
 starts when the opening voice ends; its real duration is unchanged. Ticks and

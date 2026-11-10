@@ -8,6 +8,39 @@ from cyberquiz.experiments import tables, ensure, assign, evaluate
 
 
 class ExperimentTests(unittest.TestCase):
+    def test_low_reach_experiment_expires_without_adopting_a_winner(self):
+        with tempfile.TemporaryDirectory() as folder:
+            db = connect(Path(folder) / "s.db")
+            self.addCleanup(db.close)
+            tables(db)
+            db.execute(
+                "INSERT INTO experiments VALUES(?,?,?,?,?,?,?,NULL)",
+                (
+                    "exp",
+                    "testing",
+                    "decision_seconds",
+                    "5",
+                    "3",
+                    "test",
+                    "2020-01-01T00:00:00+00:00",
+                ),
+            )
+            db.commit()
+            with (
+                patch(
+                    "cyberquiz.experiments.config",
+                    return_value={"experiment_max_days": 14},
+                ),
+                patch("cyberquiz.telegram.update_config") as update,
+            ):
+                self.assertIsNone(evaluate(db))
+                update.assert_not_called()
+            row = db.execute("SELECT state,outcome FROM experiments").fetchone()
+            self.assertEqual(row["state"], "inconclusive")
+            self.assertEqual(
+                json.loads(row["outcome"])["counts"], {"baseline": 0, "challenger": 0}
+            )
+
     def test_model_proposes_new_value_and_unsafe_parameters_are_rejected(self):
         with tempfile.TemporaryDirectory() as folder:
             db = connect(Path(folder) / "s.db")

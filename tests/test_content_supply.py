@@ -165,7 +165,12 @@ class ContentSupplyTests(unittest.TestCase):
         }
 
     def generated(
-        self, reject_first=False, industry=False, needs_copy=False, needs_headline=False
+        self,
+        reject_first=False,
+        industry=False,
+        needs_copy=False,
+        needs_headline=False,
+        needs_citation=False,
     ):
         source = {
             "excerpt": "TLS protects the client leg. HTTP traffic on the second network leg remains completely unencrypted.",
@@ -205,6 +210,21 @@ class ContentSupplyTests(unittest.TestCase):
             draft["objective_id"] = None
             audit["exam_relevant"] = False
         responses = [{"article_ids": [0]}, draft, audit]
+        if needs_citation:
+            paraphrased = {
+                **audit,
+                "rule_quote": "The source says TLS is missing on the origin hop.",
+            }
+            responses = [
+                {"article_ids": [0]},
+                draft,
+                paraphrased,
+                {
+                    "supported": True,
+                    "rule_quote": audit["rule_quote"],
+                    "rule_application": audit["rule_application"],
+                },
+            ]
         if needs_copy or needs_headline:
             long = copy.deepcopy(draft)
             long["answer"] = (
@@ -281,6 +301,42 @@ class ContentSupplyTests(unittest.TestCase):
             voice.assert_not_called()
         self.assertIsNotNone(scene)
         return scene
+
+    def test_paraphrased_citation_gets_independent_source_verification(self):
+        scene = self.generated(needs_citation=True)
+        audit = scene["provenance"]["review"]
+        self.assertTrue(audit["citation_rechecked"])
+        self.assertIn(audit["rule_quote"], scene["provenance"]["excerpt"])
+
+    def test_unsupported_citation_repair_cannot_approve_a_scene(self):
+        initial = dict.fromkeys(
+            (
+                "supported",
+                "unique_answer",
+                "diagram_consistent",
+                "fresh_case",
+                "audience_fit",
+            ),
+            True,
+        )
+        initial.update(
+            rule_quote="An invented source sentence",
+            rule_application="This rule would determine the claimed result",
+        )
+        with patch(
+            "cyberquiz.discovery.inference",
+            side_effect=[initial, {"supported": False, "rule_quote": None}],
+        ):
+            with self.assertRaisesRegex(ValueError, "did not support"):
+                discovery.audit_rule(
+                    self.db,
+                    "citation",
+                    {"core_claim": "Unsupported behavior"},
+                    None,
+                    ["A primary source about a different technical topic entirely."],
+                    [],
+                    "Networking learners",
+                )
 
     def test_remaining_long_opening_gets_one_focused_edit_then_full_audit(self):
         scene = self.generated(needs_headline=True)

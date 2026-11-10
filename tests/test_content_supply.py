@@ -164,7 +164,7 @@ class ContentSupplyTests(unittest.TestCase):
             "objective_id": "Security+:3.2",
         }
 
-    def generated(self, reject_first=False, industry=False):
+    def generated(self, reject_first=False, industry=False, needs_copy=False):
         source = {
             "excerpt": "TLS protects the client leg. HTTP traffic on the second network leg remains completely unencrypted.",
             "passages": [
@@ -203,6 +203,16 @@ class ContentSupplyTests(unittest.TestCase):
             draft["objective_id"] = None
             audit["exam_relevant"] = False
         responses = [{"article_ids": [0]}, draft, audit]
+        if needs_copy:
+            long = copy.deepcopy(draft)
+            long["answer"] = (
+                "The hop from the intermediate proxy to its origin server is not protected by TLS"
+            )
+            long["visual"]["nodes"][0]["details"] += [
+                "Additional unnecessary text",
+                "Another long redundant label",
+            ]
+            responses = [{"article_ids": [0]}, long, draft, audit]
         if reject_first:
             responses = [
                 {"article_ids": [0]},
@@ -257,6 +267,12 @@ class ContentSupplyTests(unittest.TestCase):
             voice.assert_not_called()
         self.assertIsNotNone(scene)
         return scene
+
+    def test_copy_repair_reaches_full_fact_audit_before_becoming_ready(self):
+        scene = self.generated(needs_copy=True)
+        self.assertEqual(scene["answer"], "Proxy to origin")
+        self.assertTrue(scene["provenance"]["review"]["supported"])
+        self.assertTrue(scene["ready_plan"]["quality"]["passed"])
 
     def test_industry_case_does_not_need_a_forced_exam_alignment(self):
         from cyberquiz.captions import hashtags

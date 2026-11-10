@@ -41,6 +41,10 @@ feed order cannot hide the exam material. Source selection is an inclusion list:
 an article the selector omitted is not drafted anyway. Empty selections are
 valid when the available articles have no useful practical lesson. The HTML
 reader accepts boolean attributes, including an empty `class` or `href`.
+An oversized draft gets a bounded phone-layout edit using the editing model.
+The edit can rephrase choices and compact device evidence; the entire result
+must then pass the original source, exam-scope and independent puzzle audits.
+This repair does not truncate labels or relax the factual checks.
 
 Growth observations retain question voice duration, answer reveal time and their
 relationship to average watch time after media cleanup. These describe timing,

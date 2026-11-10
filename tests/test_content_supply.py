@@ -171,6 +171,7 @@ class ContentSupplyTests(unittest.TestCase):
         needs_copy=False,
         needs_headline=False,
         needs_citation=False,
+        needs_scope_citation=False,
     ):
         source = {
             "excerpt": "TLS protects the client leg. HTTP traffic on the second network leg remains completely unencrypted.",
@@ -210,6 +211,17 @@ class ContentSupplyTests(unittest.TestCase):
             draft["objective_id"] = None
             audit["exam_relevant"] = False
         responses = [{"article_ids": [0]}, draft, audit]
+        if needs_scope_citation:
+            responses = [
+                {"article_ids": [0]},
+                draft,
+                {**audit, "exam_anchor": "Use encrypted connections for security"},
+                {
+                    "applies": True,
+                    "exam_anchor": "Protect data in transit",
+                    "tested_skill": "Identify the unencrypted network hop",
+                },
+            ]
         if needs_citation:
             paraphrased = {
                 **audit,
@@ -301,6 +313,12 @@ class ContentSupplyTests(unittest.TestCase):
             voice.assert_not_called()
         self.assertIsNotNone(scene)
         return scene
+
+    def test_paraphrased_exam_anchor_needs_actual_blueprint_evidence(self):
+        scene = self.generated(needs_scope_citation=True)
+        audit = scene["provenance"]["review"]
+        self.assertTrue(audit["scope_rechecked"])
+        self.assertIn(audit["exam_anchor"], scene["exam_scope"])
 
     def test_paraphrased_citation_gets_independent_source_verification(self):
         scene = self.generated(needs_citation=True)

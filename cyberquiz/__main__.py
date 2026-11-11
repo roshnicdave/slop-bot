@@ -18,12 +18,16 @@ def continue_publication(db, cfg):
     """Complete known containers across window boundaries without fresh submissions."""
     if not cfg["publishing_enabled"] or cfg.get("emergency_pause"):
         return
-    from .instagram import publish
+    from .instagram import ContainerUploadFailed, publish
 
     for pending in db.execute(
         "SELECT id FROM jobs WHERE approved=1 AND status='container_created'"
     ).fetchall():
-        publish(db, pending["id"])
+        try:
+            publish(db, pending["id"])
+        except ContainerUploadFailed:
+            # A failed upload has left the container queue. Recheck the schedule.
+            continue
 
 
 def publish_due(db, cfg, clock=None):
@@ -51,9 +55,12 @@ def publish_due(db, cfg, clock=None):
     ).fetchone()
     if not row:
         return False
-    from .instagram import publish
+    from .instagram import ContainerUploadFailed, publish
 
-    publish(db, row["id"])
+    try:
+        publish(db, row["id"])
+    except ContainerUploadFailed:
+        return False
     return True
 
 

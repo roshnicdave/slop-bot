@@ -40,6 +40,9 @@ def connect(path=None):
     CREATE TABLE IF NOT EXISTS incidents (
       id TEXT PRIMARY KEY,component TEXT,phase TEXT,code INTEGER,message TEXT,
       job TEXT,opened TEXT,resolved TEXT,state TEXT);
+    CREATE TABLE IF NOT EXISTS rejected_instagram_uploads (
+      container_id TEXT PRIMARY KEY, job TEXT NOT NULL, status TEXT NOT NULL,
+      code INTEGER, observed TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS job_events (
       id INTEGER PRIMARY KEY,job TEXT,previous_status TEXT,status TEXT,
       previous_error TEXT,error TEXT,observed TEXT);

@@ -1,13 +1,14 @@
 """Supported Instagram API. Unknown publish outcomes are held, never reposted."""
 
 import json
+import re
 import time
 from urllib.parse import urlparse
 
 import requests
 
 from .providers import secrets, checked
-from .store import ROOT, config, now, worker_lock
+from .store import ROOT, config, now, transaction, worker_lock
 
 
 class MetaAPIError(RuntimeError):
@@ -19,6 +20,12 @@ class MetaAPIError(RuntimeError):
             else "Meta rejected the request"
         )
         super().__init__(f"{reason} (HTTP {status}, code {code}, subcode {subcode})")
+
+
+class ContainerUploadFailed(ValueError):
+    def __init__(self, message, retry):
+        self.retry = retry
+        super().__init__(message)
 
 
 def graph(method, path, **kwargs):
@@ -49,7 +56,51 @@ def graph(method, path, **kwargs):
 
 def publish(db, job, *, immediate=False):
     with worker_lock():
-        return _publish(db, job, immediate=immediate)
+        try:
+            return _publish(db, job, immediate=immediate)
+        except ContainerUploadFailed as exc:
+            if not immediate or not exc.retry:
+                raise
+            return _publish(db, job, immediate=True)
+
+
+def _reject_container(db, job, container, status, detail):
+    """Archive a terminal upload response obtained before the final publish call."""
+    from .incidents import record
+
+    match = re.search(r"\berror code (\d{1,10})\b", str(detail or ""), re.I)
+    code = int(match[1]) if match else None
+    reason = (
+        "Instagram rejected the Reel upload"
+        if status == "ERROR"
+        else "The Instagram upload expired"
+    )
+    if code is not None:
+        reason += f" (code {code})"
+    with transaction(db):
+        retry = not db.execute(
+            "SELECT 1 FROM rejected_instagram_uploads WHERE job=? LIMIT 1", (job,)
+        ).fetchone()
+        db.execute(
+            "INSERT INTO rejected_instagram_uploads VALUES(?,?,?,?,?)",
+            (container, job, status, code, now()),
+        )
+        if retry:
+            db.execute(
+                "UPDATE jobs SET status='rendered',container_id=NULL,error=? WHERE id=?",
+                (reason, job),
+            )
+        else:
+            reason += ". The replacement upload also failed"
+            db.execute(
+                "UPDATE jobs SET status='failed',approved=0,error=? WHERE id=?",
+                (reason, job),
+            )
+    incident = record(db, "instagram", "container_upload", code, reason, job)
+    if not retry:
+        db.execute("UPDATE incidents SET message=? WHERE id=?", (reason, incident))
+        db.commit()
+    raise ContainerUploadFailed(reason, retry)
 
 
 def _publish(db, job, *, immediate=False):
@@ -72,6 +123,7 @@ def _publish(db, job, *, immediate=False):
     if (
         not row
         or not row["approved"]
+        or row["media_id"]
         or row["status"] not in ("rendered", "container_created")
     ):
         raise ValueError(
@@ -182,13 +234,24 @@ def _publish(db, job, *, immediate=False):
         "SELECT container_id FROM jobs WHERE id=?", (job,)
     ).fetchone()[0]
     for _ in range(12):
-        data = graph("GET", container, params={"fields": "status_code"})
+        data = graph("GET", container, params={"fields": "status_code,status"})
         if data["status_code"] == "FINISHED":
             break
-        if data["status_code"] in ("ERROR", "EXPIRED", "PUBLISHED"):
-            raise RuntimeError(
-                "Container requires manual reconciliation: " + data["status_code"]
+        if data["status_code"] in ("ERROR", "EXPIRED"):
+            _reject_container(
+                db, job, container, data["status_code"], data.get("status")
             )
+        if data["status_code"] == "PUBLISHED":
+            from .incidents import record
+
+            reason = "Instagram reports the Reel was published. Its receipt needs reconciliation."
+            db.execute(
+                "UPDATE jobs SET status='publish_unknown',error=? WHERE id=?",
+                (reason, job),
+            )
+            db.commit()
+            record(db, "instagram", "reconciliation", None, reason, job)
+            raise ValueError(reason)
         time.sleep(5)
     else:
         raise RuntimeError(
@@ -213,6 +276,7 @@ def _publish(db, job, *, immediate=False):
     from .incidents import resolve
 
     resolve(db, "instagram", job=job)
+    resolve(db, "instagram", phase="container_upload")
     (folder / "receipt.json").write_text(
         json.dumps({"media_id": result["id"], "published_at": now()})
     )

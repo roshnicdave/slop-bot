@@ -185,7 +185,9 @@ def topology(d, p, fixed=False, phase=0):
 
 
 def frame(p, stage="question", remaining=None, phase=0, progress=0, subtitle=None):
-    if p.get("design_version") == 3 or p.get("diagram", {}).get("kind") == "config":
+    if (p.get("design_version") or 0) >= 3 or p.get("diagram", {}).get(
+        "kind"
+    ) == "config":
         from .clean_visual import frame as clean_frame
 
         return clean_frame(p, stage, remaining, phase, progress, subtitle)

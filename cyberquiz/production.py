@@ -154,6 +154,9 @@ def _make(db, slot=None, scene_key=None, attempt=0):
                     # held draft as a failed production with no associated job.
                     return ident
             return ident
+        from .visual import preview, render
+
+        preview(p, folder)
         if cfg.get("voice_provider") == "elevenlabs":
             from .premium_voice import preflight
 
@@ -174,8 +177,6 @@ def _make(db, slot=None, scene_key=None, attempt=0):
                 cloudflare.voice(db, ident, label, p[label], folder / (label + ".wav"))
         db.execute('UPDATE jobs SET status="rendering" WHERE id=?', (ident,))
         db.commit()
-        from .visual import render
-
         render(folder)
         from .quality import artifact
 

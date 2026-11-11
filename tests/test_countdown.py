@@ -20,6 +20,29 @@ from cyberquiz.cloudflare import FreeQuotaDeferred
 
 
 class CountdownTests(unittest.TestCase):
+    def test_current_presentation_previews_a_source_style_flow_diagram(self):
+        from cyberquiz.visual import PRESENTATION_VERSION, preview
+
+        p = plan(vlan(), {}, "test")
+        p.update(
+            design_version=PRESENTATION_VERSION,
+            palette="ink",
+            diagram={
+                "kind": "flow",
+                "nodes": [
+                    {"id": "pc", "kind": "pc", "label": "Admin PC"},
+                    {"id": "router", "kind": "router", "label": "Office router"},
+                ],
+                "edges": [{"from": "pc", "to": "router", "label": "HTTP 80"}],
+            },
+        )
+        with tempfile.TemporaryDirectory() as folder:
+            preview(p, folder)
+            for stage in ("question", "reveal", "fix"):
+                self.assertGreater(
+                    (Path(folder) / f"{stage}-preview.jpg").stat().st_size, 0
+                )
+
     def test_non_frame_aligned_voice_and_reveal_get_their_own_frames(self):
         events = [2.2797916667, 3.2797916667, 7.2797916667, 12.19123]
         times = scene_times(16.765333, 8, events)

@@ -171,6 +171,21 @@ def reel_badge(crop):
     return badge, mask
 
 
+@lru_cache(maxsize=1)
+def mascot_source():
+    with Image.open(ROOT / "data" / "reel-mascot.png") as source:
+        return source.convert("RGBA")
+
+
+@lru_cache(maxsize=12)
+def mascot_at_height(height):
+    source = mascot_source()
+    scale = min(138 / source.width, height / source.height)
+    width = max(1, round(source.width * scale))
+    height = max(1, round(source.height * scale))
+    return source.resize((width, height), Image.Resampling.LANCZOS)
+
+
 def frame(p, stage="question", remaining=None, phase=0, progress=0, subtitle=None):
     dark = p.get("palette") == "ink"
     fg = "#f7fafc" if dark else INK
@@ -191,7 +206,19 @@ def frame(p, stage="question", remaining=None, phase=0, progress=0, subtitle=Non
             True,
             center=True,
         )
-    if crop := p.get("reel_badge_crop"):
+    mascot = None
+    if p.get("reel_mascot"):
+        height = 108
+        if stage == "reveal":
+            # Ease out from the corner as the answer narration starts.
+            height += round(76 * (1 - (1 - progress) ** 3))
+        elif stage == "fix":
+            height = 184
+        try:
+            mascot = mascot_at_height(height)
+        except OSError:
+            pass  # Optional artwork cannot block production.
+    if not p.get("reel_mascot") and (crop := p.get("reel_badge_crop")):
         try:
             badge, mask = reel_badge(tuple(crop))
         except (OSError, ValueError, TypeError):
@@ -255,5 +282,8 @@ def frame(p, stage="question", remaining=None, phase=0, progress=0, subtitle=Non
                     )
                 text(d, "Comment your answer.", 360, 1067, 25, fg, True, center=True)
         else:
-            text(d, p["explanation"], 360, 1020, 24, fg, width=580, center=True)
+            center, width = (267, 390) if mascot else (360, 580)
+            text(d, p["explanation"], center, 1020, 24, fg, width=width, center=True)
+    if mascot:
+        im.paste(mascot, (624 - mascot.width, 1168 - mascot.height), mascot)
     return im

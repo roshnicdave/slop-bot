@@ -261,9 +261,13 @@ def preview(plan, folder):
     folder = Path(folder)
     folder.mkdir(parents=True, exist_ok=True)
     for stage in ["question", "reveal", "fix"]:
-        frame(plan, stage, 5 if stage == "question" else None, 0.6).save(
-            folder / (stage + "-preview.jpg"), quality=95
-        )
+        frame(
+            plan,
+            stage,
+            5 if stage == "question" else None,
+            0.6,
+            progress=0 if stage == "question" else 1,
+        ).save(folder / (stage + "-preview.jpg"), quality=95)
     frame(plan).save(folder / "preview.jpg", quality=95)
 
 
@@ -356,21 +360,23 @@ def render(folder):
     fps = 8
     from .sound import clock_state, tick_times
 
-    times = scene_times(
-        total,
-        fps,
-        [*tick_times(intro, decision), intro + decision, intro + decision + fix_delay],
-    )
+    reveal_start = intro + decision
+    reveal_end = reveal_start + fix_delay
+    boundaries = [*tick_times(intro, decision), reveal_start, reveal_end]
+    mascot_expand_seconds = min(0.42, fix_delay)
+    if p.get("reel_mascot") and mascot_expand_seconds:
+        boundaries.append(reveal_start + mascot_expand_seconds)
+    times = scene_times(total, fps, boundaries)
     n = len(times) - 1
     # A bounded 8 fps scene animation encoded at 24 fps: no AI-video spend.
     for index, (t, until) in enumerate(zip(times, times[1:])):
-        if t < intro + decision:
+        if t < reveal_start:
             stage = "question"
             remain, progress = clock_state(t, intro, decision)
-        elif t < intro + decision + fix_delay:
+        elif t < reveal_end:
             stage = "reveal"
             remain = None
-            progress = 1
+            progress = min(1, (t - reveal_start) / mascot_expand_seconds)
         else:
             stage = "fix"
             remain = None

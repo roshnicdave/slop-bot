@@ -7,7 +7,7 @@ from array import array
 from pathlib import Path
 from unittest.mock import patch
 
-from PIL import ImageChops
+from PIL import Image, ImageChops
 
 from cyberquiz.clean_visual import frame
 from cyberquiz.editorial import craft
@@ -20,6 +20,32 @@ from cyberquiz.cloudflare import FreeQuotaDeferred
 
 
 class CountdownTests(unittest.TestCase):
+    def test_mascot_grows_in_place_below_the_answers(self):
+        from cyberquiz.clean_visual import mascot_at_height
+
+        p = plan(vlan(), {}, "test")
+        p.update(palette="ink", reel_mascot=True)
+        mascot_at_height.cache_clear()
+        self.addCleanup(mascot_at_height.cache_clear)
+        with patch(
+            "cyberquiz.clean_visual.mascot_source",
+            return_value=Image.new("RGBA", (120, 180), "magenta"),
+        ):
+            question = frame(p, "question", 3)
+            reveal_start = frame(p, "reveal", progress=0)
+            reveal_end = frame(p, "reveal", progress=1)
+            fix = frame(p, "fix")
+        for im, top in (
+            (question, 1060),
+            (reveal_start, 1060),
+            (reveal_end, 984),
+            (fix, 984),
+        ):
+            self.assertEqual(im.getpixel((623, top)), (255, 0, 255))
+            self.assertNotEqual(im.getpixel((623, top - 1)), (255, 0, 255))
+            self.assertEqual(im.getpixel((623, 1167)), (255, 0, 255))
+            self.assertNotEqual(im.getpixel((623, 1168)), (255, 0, 255))
+
     def test_current_presentation_previews_a_source_style_flow_diagram(self):
         from cyberquiz.visual import PRESENTATION_VERSION, preview
 

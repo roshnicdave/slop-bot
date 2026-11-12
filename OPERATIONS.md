@@ -18,6 +18,8 @@ python3 deploy/aws_access.py 'systemctl is-active cyberquiz-telegram cyberquiz-c
 
 Tests cover source-proof binding, configurable lesson/identical-case spacing, blueprint parsing, safe documentation discovery, prepared-draft production during planner outages, background quota isolation, scheduling deadlines, budget races, experiment adoption requirements, private access, Telegram media deletion/resending, audio alignment and uncertain publication protection.
 
+To enable the corner mascot for new renders, install a transparent PNG at `data/reel-mascot.png` and set `reel_mascot` to `true` in the runtime config. Keep the artwork out of Git. The renderer continues if the artwork is unavailable.
+
 ## Costs and failure handling
 
 Cloudflare uses a shared 10,000-neuron UTC-day ceiling; chat is protected from research consumption. Eligible inference stops when Free is exhausted. The selected premium voice has its own pricing check plus shared rolling monthly/per-job reservations; it is an explicit voice choice, never a model fallback. The private preview experiment is capped at six cents. Fal invoice reporting remains unavailable, so report reservations separately from reconciled billing.

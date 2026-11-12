@@ -1,7 +1,9 @@
 """Quiet Reel layout: one puzzle, one technical diagram, four answers."""
 
 import copy
+from functools import lru_cache
 from PIL import Image, ImageDraw
+from .store import ROOT
 from .visual import F, text, INK, GREEN
 
 
@@ -150,6 +152,25 @@ def clock(d, remaining, progress, dark):
     )
 
 
+@lru_cache(maxsize=4)
+def reel_badge(crop):
+    size = 54
+    with Image.open(ROOT / "data" / "reel-badge.jpg") as source:
+        left, top, right, bottom = crop
+        if not (
+            0 <= left < right <= source.width and 0 <= top < bottom <= source.height
+        ):
+            raise ValueError("Badge crop is outside the image")
+        badge = (
+            source.crop(crop)
+            .convert("RGB")
+            .resize((size, size), Image.Resampling.LANCZOS)
+        )
+    mask = Image.new("L", badge.size)
+    ImageDraw.Draw(mask).ellipse((0, 0, size - 1, size - 1), fill=255)
+    return badge, mask
+
+
 def frame(p, stage="question", remaining=None, phase=0, progress=0, subtitle=None):
     dark = p.get("palette") == "ink"
     fg = "#f7fafc" if dark else INK
@@ -170,6 +191,13 @@ def frame(p, stage="question", remaining=None, phase=0, progress=0, subtitle=Non
             True,
             center=True,
         )
+    if crop := p.get("reel_badge_crop"):
+        try:
+            badge, mask = reel_badge(tuple(crop))
+        except (OSError, ValueError, TypeError):
+            pass  # Optional artwork cannot block production.
+        else:
+            im.paste(badge, (72, 294), mask)
     if dark and p["diagram"]["kind"] in ("switch", "flow"):
         d.rounded_rectangle((60, 366, 660, 623), radius=16, fill="white")
     diagram(d, p, stage == "fix")

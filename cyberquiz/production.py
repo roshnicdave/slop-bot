@@ -86,6 +86,8 @@ def _make(db, slot=None, scene_key=None, attempt=0):
         p["sound_cues"] = True
         p["narration_speed"] = cfg.get("narration_speed", 1.08)
         p["palette"] = cfg.get("palette", "ink")
+        if crop := cfg.get("reel_badge_crop"):
+            p["reel_badge_crop"] = crop
         p["countdown_style"] = cfg.get("countdown_style", "dial")
         p["tick_level_dbfs"] = cfg.get("tick_level_dbfs", -24)
         authored_hook = p.get("hook_strategy", "short diagnostic contrast")

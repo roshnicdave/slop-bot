@@ -60,6 +60,7 @@
   "voice_provider": "elevenlabs",
   "premium_voice_speaker": "Chris",
   "palette": "ink",
+  "reel_badge_crop": null,
   "adaptive_posting_times": true,
   "trend_discovery_enabled": true,
   "discovery_hashtags": [

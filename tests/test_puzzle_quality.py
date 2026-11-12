@@ -62,6 +62,7 @@ class PuzzleQualityTests(unittest.TestCase):
             "title_gives_answer": False,
             "diagram_needed": True,
             "plausible_distractors": True,
+            "quick_read": True,
         }
         solver.update(changes)
 
@@ -108,6 +109,12 @@ class PuzzleQualityTests(unittest.TestCase):
         self.assertIn("Wrong cable", issues)
         self.assertIn("intended answer", issues)
         self.assertIn("overlapping correct choices", issues)
+
+    def test_correct_puzzle_with_too_much_to_scan_is_held(self):
+        issue = "The host addresses do not help distinguish the options."
+        result, _ = self.evaluate(quick_read=False, issues=[issue])
+        self.assertFalse(result["passed"])
+        self.assertIn(issue, result["editorial"]["issues"])
 
     def test_valid_puzzle_passes_independent_solution(self):
         result, messages = self.evaluate()

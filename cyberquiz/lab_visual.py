@@ -50,6 +50,13 @@ def evidence(p):
             {"type": "PC", "label": "PC B", "ip": p["model"]["b"]},
         ]
         result["connection"] = "Both PCs connect to a switch on the same VLAN"
+    elif p["model"]["kind"] == "broadcast":
+        interface = ipaddress.ip_interface(p["model"]["ip"])
+        result["address_line"] = {
+            "left": str(interface.network.network_address),
+            "right": str(interface.network.broadcast_address),
+            "marked_address": str(interface.ip),
+        }
     return result
 
 

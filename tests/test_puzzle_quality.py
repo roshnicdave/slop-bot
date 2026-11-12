@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import patch
 from cyberquiz.scenarios import bank, dns, plan, vlan
-from cyberquiz.quality import review
+from cyberquiz.quality import layout, review
 
 
 class PuzzleQualityTests(unittest.TestCase):
@@ -115,6 +115,30 @@ class PuzzleQualityTests(unittest.TestCase):
         result, _ = self.evaluate(quick_read=False, issues=[issue])
         self.assertFalse(result["passed"])
         self.assertIn(issue, result["editorial"]["issues"])
+
+    def test_flow_layout_rejects_extra_labels_even_when_each_fits(self):
+        p = plan(vlan(), {}, "test")
+        p["diagram"] = {
+            "kind": "flow",
+            "nodes": [
+                {"id": "pc", "label": "PC", "details": ["192.0.2.10"]},
+                {
+                    "id": "fw",
+                    "label": "Firewall",
+                    "details": ["Allow TCP 443", "Block UDP 53"],
+                },
+                {"id": "srv", "label": "Server", "details": ["192.0.2.20"]},
+            ],
+            "edges": [
+                {"from": "pc", "to": "fw", "label": "TCP 443"},
+                {"from": "fw", "to": "srv", "label": "TCP 443"},
+            ],
+        }
+        with self.assertRaisesRegex(ValueError, "6 settings and link labels"):
+            layout(p)
+        for node in p["diagram"]["nodes"][::2]:
+            node["details"] = []
+        self.assertTrue(layout(p))
 
     def test_valid_puzzle_passes_independent_solution(self):
         result, messages = self.evaluate()

@@ -4,6 +4,17 @@ import math
 from .visual import text, INK, F
 
 
+def check_annotations(view):
+    count = sum(
+        bool(detail.strip()) for n in view["nodes"] for detail in n.get("details", [])
+    )
+    count += sum(bool(edge["label"].strip()) for edge in view["edges"])
+    if count > 4:
+        raise ValueError(
+            f"Diagram shows {count} settings and link labels. Keep at most four and remove labels that do not affect the answer."
+        )
+
+
 def triangle(view):
     positions = {n["id"]: i for i, n in enumerate(view["nodes"])}
     return len(positions) == 3 and any(

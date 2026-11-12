@@ -483,6 +483,12 @@ def compile_scene(draft, source, article, objectives, ident):
     ):
         raise ValueError("Invalid choices")
     validate_scene_fields(scene)
+    from .flow_visual import check_annotations
+
+    try:
+        check_annotations(scene["diagram"])
+    except ValueError as exc:
+        raise CopyNeedsEdit(str(exc)) from exc
     return scene, quotes, objective
 
 

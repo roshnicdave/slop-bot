@@ -71,8 +71,9 @@ def layout(p):
         if F(22, True).getlength(option) > 545:
             raise ValueError("Answer would become too small")
     if p["diagram"]["kind"] == "flow":
-        from .flow_visual import triangle
+        from .flow_visual import check_annotations, triangle
 
+        check_annotations(p["diagram"])
         compact = triangle(p["diagram"])
         if any(
             F(14, False).getlength(e["label"]) > (100 if compact else 180)

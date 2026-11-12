@@ -258,9 +258,9 @@ def frame(p, stage="question", remaining=None, phase=0, progress=0, subtitle=Non
                 size -= 1
             text(d, answer, 144, y + 16, size, GREEN if correct else fg, True)
         if stage == "question":
+            remaining = p.get("decision_seconds", 5) if remaining is None else remaining
             if p.get("countdown_style", "dial") == "dial":
-                if remaining is not None:
-                    clock(d, remaining, progress, dark)
+                clock(d, remaining, progress, dark)
                 text(d, "Comment your answer.", 395, 1041, 25, fg, True, center=True)
             else:
                 d.rounded_rectangle((74, 1020, 580, 1026), radius=3, fill="#edf1f4")
@@ -269,17 +269,16 @@ def frame(p, stage="question", remaining=None, phase=0, progress=0, subtitle=Non
                     radius=3,
                     fill="#ffca68" if dark else "#2c718f",
                 )
-                if remaining is not None:
-                    text(
-                        d,
-                        str(max(1, int(remaining))) + "s",
-                        616,
-                        1002,
-                        24,
-                        fg,
-                        True,
-                        center=True,
-                    )
+                text(
+                    d,
+                    str(max(1, int(remaining))) + "s",
+                    616,
+                    1002,
+                    24,
+                    fg,
+                    True,
+                    center=True,
+                )
                 text(d, "Comment your answer.", 360, 1067, 25, fg, True, center=True)
         else:
             center, width = (267, 390) if mascot else (360, 580)

@@ -264,7 +264,7 @@ def preview(plan, folder):
         frame(
             plan,
             stage,
-            5 if stage == "question" else None,
+            plan.get("decision_seconds", 5) if stage == "question" else None,
             0.6,
             progress=0 if stage == "question" else 1,
         ).save(folder / (stage + "-preview.jpg"), quality=95)
@@ -319,30 +319,33 @@ def render(folder):
     decision = p.get("decision_seconds", 5)
     if type(decision) is not int or not 3 <= decision <= 7:
         raise ValueError("Solve countdown must be 3-7 whole seconds")
+    # On longer reads, let the first tick overlap the end of the question.
+    solve_start = intro - min(1.25, max(0, intro - 4))
+    reveal_start = solve_start + decision
     if p.get("voice_version") == 2:
         reveal_audio = folder / "reveal_voice.wav"
         fix_audio = folder / "fix_voice.wav"
         reveal_duration = duration(reveal_audio)
         fix_duration = duration(fix_audio)
         fix_delay = reveal_duration
-        total = intro + decision + reveal_duration + fix_duration + 0.6
+        total = reveal_start + reveal_duration + fix_duration + 0.6
         segments = [
             {"stage": "question", "start": 0, "end": intro, "text": p["intro"]},
             {
                 "stage": "decision",
                 "start": intro,
-                "end": intro + decision,
+                "end": reveal_start,
                 "text": "Which clue gives it away?",
             },
             {
                 "stage": "reveal",
-                "start": intro + decision,
-                "end": intro + decision + reveal_duration,
+                "start": reveal_start,
+                "end": reveal_start + reveal_duration,
                 "text": p["reveal_voice"],
             },
             {
                 "stage": "fix",
-                "start": intro + decision + reveal_duration,
+                "start": reveal_start + reveal_duration,
                 "end": total - 0.6,
                 "text": p["fix_voice"],
             },
@@ -352,7 +355,7 @@ def render(folder):
         fix_audio = None
         outro = duration(reveal_audio)
         fix_delay = min(4.4, outro * 0.55)
-        total = intro + decision + outro + 0.6
+        total = reveal_start + outro + 0.6
         segments = []
     frames = folder / "frames"
     frames.mkdir(exist_ok=True)
@@ -360,9 +363,8 @@ def render(folder):
     fps = 8
     from .sound import clock_state, tick_times
 
-    reveal_start = intro + decision
     reveal_end = reveal_start + fix_delay
-    boundaries = [*tick_times(intro, decision), reveal_start, reveal_end]
+    boundaries = [*tick_times(solve_start, decision), reveal_start, reveal_end]
     mascot_expand_seconds = min(0.42, fix_delay)
     if p.get("reel_mascot") and mascot_expand_seconds:
         boundaries.append(reveal_start + mascot_expand_seconds)
@@ -372,7 +374,7 @@ def render(folder):
     for index, (t, until) in enumerate(zip(times, times[1:])):
         if t < reveal_start:
             stage = "question"
-            remain, progress = clock_state(t, intro, decision)
+            remain, progress = clock_state(t, solve_start, decision)
         elif t < reveal_end:
             stage = "reveal"
             remain = None
@@ -407,7 +409,9 @@ def render(folder):
             out.setsampwidth(width)
             out.setframerate(rate)
             out.writeframes(a.readframes(a.getnframes()))
-            out.writeframes(bytes(decision * rate * channels * width))
+            out.writeframes(
+                bytes(round((reveal_start - intro) * rate) * channels * width)
+            )
             out.writeframes(b.readframes(b.getnframes()))
             if fix_audio:
                 with wave.open(str(fix_audio)) as c:
@@ -421,7 +425,7 @@ def render(folder):
 
         cues = mix(
             folder / "speech.wav",
-            intro,
+            solve_start,
             decision,
             tick_level_dbfs=p.get("tick_level_dbfs", -24),
         )
@@ -502,8 +506,9 @@ def render(folder):
         json.dumps(
             {
                 "total_seconds": total,
-                "reveal_at": intro + decision,
-                "fix_at": intro + decision + fix_delay,
+                "countdown_start": solve_start,
+                "reveal_at": reveal_start,
+                "fix_at": reveal_end,
                 "narration_characters": len(p["intro"]) + len(p["outro"]),
                 "animation_fps": fps,
                 "diagram_renderer_version": VERSION,

@@ -20,6 +20,16 @@ from cyberquiz.cloudflare import FreeQuotaDeferred
 
 
 class CountdownTests(unittest.TestCase):
+    def test_opening_shows_the_configured_count_before_the_first_tick(self):
+        p = plan(vlan(), {}, "test")
+        p.update(palette="ink", decision_seconds=4)
+        self.assertIsNone(
+            ImageChops.difference(frame(p), frame(p, remaining=4)).getbbox()
+        )
+        self.assertIsNotNone(
+            ImageChops.difference(frame(p), frame(p, remaining=5)).getbbox()
+        )
+
     def test_mascot_grows_in_place_below_the_answers(self):
         from cyberquiz.clean_visual import mascot_at_height
 

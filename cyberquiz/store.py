@@ -73,11 +73,25 @@ def transaction(db):
         raise
 
 
-def reserve(db, job, kind, amount, cfg=None):
-    """Integer microdollars; never refund based on an unconfirmed estimate."""
+def check_budget(db, job, amount, cfg=None):
     cfg = cfg or config()
     if amount <= 0:
         raise ValueError("Reservation must be positive")
+    cutoff = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=31)).isoformat()
+    month = db.execute(
+        "SELECT COALESCE(SUM(reserved),0) FROM charges WHERE created>=?", (cutoff,)
+    ).fetchone()[0]
+    total = db.execute(
+        "SELECT COALESCE(SUM(reserved),0) FROM charges WHERE job=?", (job,)
+    ).fetchone()[0]
+    if month + amount > round(cfg["monthly_budget_usd"] * 1e6):
+        raise ValueError("31-day budget exhausted; paid calls stopped")
+    if total + amount > round(cfg["per_job_budget_usd"] * 1e6):
+        raise ValueError("Per-job budget exhausted; paid call stopped")
+
+
+def reserve(db, job, kind, amount, cfg=None):
+    """Integer microdollars; never refund based on an unconfirmed estimate."""
     with transaction(db):
         if db.execute(
             "SELECT 1 FROM charges WHERE job=? AND kind=?", (job, kind)
@@ -85,17 +99,7 @@ def reserve(db, job, kind, amount, cfg=None):
             raise ValueError(
                 "This paid operation already exists; no automatic resubmission"
             )
-        cutoff = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=31)).isoformat()
-        month = db.execute(
-            "SELECT COALESCE(SUM(reserved),0) FROM charges WHERE created>=?", (cutoff,)
-        ).fetchone()[0]
-        total = db.execute(
-            "SELECT COALESCE(SUM(reserved),0) FROM charges WHERE job=?", (job,)
-        ).fetchone()[0]
-        if month + amount > round(cfg["monthly_budget_usd"] * 1e6):
-            raise ValueError("31-day budget exhausted; paid calls stopped")
-        if total + amount > round(cfg["per_job_budget_usd"] * 1e6):
-            raise ValueError("Per-job budget exhausted; paid call stopped")
+        check_budget(db, job, amount, cfg)
         ident = uuid.uuid4().hex
         db.execute(
             "INSERT INTO charges(id,job,kind,created,reserved,status) VALUES(?,?,?,?,?,?)",

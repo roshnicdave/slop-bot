@@ -59,6 +59,7 @@
   "narration_speed": 1.08,
   "voice_provider": "elevenlabs",
   "premium_voice_speaker": "Chris",
+  "fish_voice_reference_id": null,
   "palette": "ink",
   "reel_mascot": false,
   "adaptive_posting_times": true,

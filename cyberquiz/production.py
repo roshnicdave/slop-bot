@@ -6,6 +6,63 @@ import datetime as dt
 from .store import ROOT, new_job, config, worker_lock
 from . import scenarios, scout, cloudflare, content
 
+VOICE_SEGMENTS = ("intro", "reveal_voice", "fix_voice")
+
+
+def narration_started(db, job, labels):
+    cloudflare_ledger = db.execute(
+        "SELECT 1 FROM sqlite_master WHERE name='cf_calls'"
+    ).fetchone()
+    return any(
+        db.execute(
+            "SELECT 1 FROM charges WHERE job=? AND kind IN (?,?)",
+            (job, "premium_voice:" + label, "fish_voice:" + label),
+        ).fetchone()
+        or (
+            cloudflare_ledger
+            and db.execute(
+                "SELECT 1 FROM cf_calls WHERE operation=?", (job + ":voice:" + label,)
+            ).fetchone()
+        )
+        for label in labels
+    )
+
+
+def narrate(db, job, p, folder, cfg):
+    segments = [
+        (label, p[label], folder / (label + ".wav")) for label in VOICE_SEGMENTS
+    ]
+    missing = [item for item in segments if not item[2].is_file()]
+    if not missing:
+        return
+    provider = p.get("voice_provider", cfg.get("voice_provider"))
+    if provider == "fish":
+        from .fish_voice import narrate as fish_narrate
+
+        if "voice_provider" not in p and (
+            len(missing) != len(segments) or narration_started(db, job, VOICE_SEGMENTS)
+        ):
+            raise ValueError("Saved narration must finish with its original voice")
+        fish_narrate(
+            db,
+            job,
+            p.get("fish_voice_reference_id", cfg.get("fish_voice_reference_id")),
+            missing,
+            cfg,
+        )
+    elif provider == "elevenlabs":
+        from .premium_voice import generate, preflight
+
+        if len(missing) == len(segments):
+            preflight(db, [script for _, script, _ in missing])
+        for label, script, path in missing:
+            generate(
+                db, job, label, script, cfg.get("premium_voice_speaker", "Chris"), path
+            )
+    else:
+        for label, script, path in missing:
+            cloudflare.voice(db, job, label, script, path)
+
 
 def make(db, slot=None, scene_key=None, attempt=0):
     with worker_lock():
@@ -135,6 +192,9 @@ def _make(db, slot=None, scene_key=None, attempt=0):
         from .captions import caption
 
         p["caption"] = caption(p)  # Also refresh older, fully reviewed text reserves.
+        p["voice_provider"] = cfg.get("voice_provider", "cloudflare")
+        if p["voice_provider"] == "fish":
+            p["fish_voice_reference_id"] = cfg.get("fish_voice_reference_id")
         (folder / "quality.json").write_text(json.dumps(quality, indent=2))
         p["quality"] = quality
         (folder / "plan.json").write_text(json.dumps(p, indent=2))
@@ -161,24 +221,7 @@ def _make(db, slot=None, scene_key=None, attempt=0):
         from .visual import preview, render
 
         preview(p, folder)
-        if cfg.get("voice_provider") == "elevenlabs":
-            from .premium_voice import preflight
-
-            preflight(db, [p[k] for k in ("intro", "reveal_voice", "fix_voice")])
-        for label in ["intro", "reveal_voice", "fix_voice"]:
-            if cfg.get("voice_provider") == "elevenlabs":
-                from .premium_voice import generate
-
-                generate(
-                    db,
-                    ident,
-                    label,
-                    p[label],
-                    cfg.get("premium_voice_speaker", "Chris"),
-                    folder / (label + ".wav"),
-                )
-            else:
-                cloudflare.voice(db, ident, label, p[label], folder / (label + ".wav"))
+        narrate(db, ident, p, folder, cfg)
         db.execute('UPDATE jobs SET status="rendering" WHERE id=?', (ident,))
         db.commit()
         render(folder)
@@ -235,20 +278,7 @@ def _resume(db, ident):
     if not p.get("quality", {}).get("passed"):
         raise ValueError("Saved job has not passed automatic editorial checks")
     folder = ROOT / "out" / ident
-    for label in ["intro", "reveal_voice", "fix_voice"]:
-        if config().get("voice_provider") == "elevenlabs":
-            from .premium_voice import generate
-
-            generate(
-                db,
-                ident,
-                label,
-                p[label],
-                config().get("premium_voice_speaker", "Chris"),
-                folder / (label + ".wav"),
-            )
-        else:
-            cloudflare.voice(db, ident, label, p[label], folder / (label + ".wav"))
+    narrate(db, ident, p, folder, config())
     from .visual import render
 
     render(folder)
@@ -280,20 +310,12 @@ def recover(db):
         if not p.get("quality", {}).get("passed"):
             continue
         folder = ROOT / "out" / ident
-        uncertain = False
-        for label in ("intro", "reveal_voice", "fix_voice"):
-            if not (folder / (label + ".wav")).exists():
-                if (
-                    db.execute(
-                        "SELECT 1 FROM sqlite_master WHERE name='cf_calls'"
-                    ).fetchone()
-                    and db.execute(
-                        "SELECT 1 FROM cf_calls WHERE operation=?",
-                        (ident + ":voice:" + label,),
-                    ).fetchone()
-                ):
-                    uncertain = True
-        if uncertain:
+        missing = [
+            label
+            for label in VOICE_SEGMENTS
+            if not (folder / (label + ".wav")).is_file()
+        ]
+        if narration_started(db, ident, missing):
             db.execute('UPDATE jobs SET status="held_provider" WHERE id=?', (ident,))
             db.commit()
             notify(

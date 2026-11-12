@@ -112,7 +112,13 @@ def project(prompt):
     }
     out["own_metrics"] = {
         text(k, 60): {
-            field: value.get(field) for field in ("posts", "median_shares_per_1000")
+            field: value.get(field)
+            for field in (
+                "posts",
+                "follower_samples",
+                "median_follows_per_1000",
+                "median_shares_per_1000",
+            )
         }
         for k, value in list(prompt.get("own_metrics", {}).items())[:4]
     }

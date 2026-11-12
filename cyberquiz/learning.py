@@ -71,6 +71,7 @@ def growth(db):
         }
         for name in ("likes", "comments", "shares", "saved", "follows"):
             value = metric(payload, name)
+            entry[name] = value
             entry[name + "_per_1000_reached"] = (
                 round(1000 * value / reach, 2)
                 if value is not None and reach is not None and reach > 0
@@ -115,31 +116,46 @@ def analyze(db):
         follows = metric(payload, "follows")
         shares = metric(payload, "shares")
         saved = metric(payload, "saved")
-        if shares is None:
+        if shares is None and follows is None and saved is None:
             continue
         p = json.loads(job["plan"])
-        score = 1000 * shares / reach
+        score = None if follows is None else 1000 * follows / reach
         entry = {
             "media_id": job["media_id"],
             "format": p["format"],
             "family": p["family"],
             "reach": reach,
-            "follows_per_1000": None if follows is None else 1000 * follows / reach,
-            "shares_per_1000": 1000 * shares / reach,
+            "follows_per_1000": score,
+            "shares_per_1000": None if shares is None else 1000 * shares / reach,
             "saves_per_1000": None if saved is None else 1000 * saved / reach,
             "score": score,
         }
         posts.append(entry)
-        groups.setdefault(p["format"], []).append(score)
-    eligible = {k: statistics.median(v) for k, v in groups.items() if len(v) >= 5}
+        groups.setdefault(p["format"], []).append(entry)
+    formats = {}
+    for name, entries in groups.items():
+        follows = [
+            p["follows_per_1000"] for p in entries if p["follows_per_1000"] is not None
+        ]
+        shares = [
+            p["shares_per_1000"] for p in entries if p["shares_per_1000"] is not None
+        ]
+        formats[name] = {
+            "posts": len(entries),
+            "follower_samples": len(follows),
+            "median_follows_per_1000": statistics.median(follows) if follows else None,
+            "median_shares_per_1000": statistics.median(shares) if shares else None,
+        }
+    eligible = {
+        name: stats["median_follows_per_1000"]
+        for name, stats in formats.items()
+        if stats["follower_samples"] >= 5
+    }
     winner = max(eligible, key=eligible.get) if len(eligible) >= 2 else None
     return {
         "comparable_posts": len(posts),
-        "formats": {
-            k: {"posts": len(v), "median_shares_per_1000": statistics.median(v)}
-            for k, v in groups.items()
-        },
-        "objective": "shares per 1000 reached; follows and saves are separate outcomes",
+        "formats": formats,
+        "objective": "follows per 1000 reached at approximately 72 hours",
         "preferred_format": winner,
         "experiment_share": 0.25,
         "posts": posts,

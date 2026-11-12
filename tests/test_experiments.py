@@ -101,7 +101,7 @@ class ExperimentTests(unittest.TestCase):
             with patch("cyberquiz.telegram.update_config") as update:
                 evaluate(db)
                 update.assert_not_called()
-                for arm, shares in [("baseline", 1), ("challenger", 10)]:
+                for arm, shares in [("baseline", 10), ("challenger", 1)]:
                     for n in range(10):
                         j = new_job(db, "test")
                         media = arm + str(n)
@@ -118,6 +118,19 @@ class ExperimentTests(unittest.TestCase):
                             "INSERT INTO metrics VALUES(?,?,?,?)",
                             (media, now(), 72, json.dumps(payload)),
                         )
+                db.commit()
+                evaluate(db)
+                update.assert_not_called()
+                for media, payload in db.execute(
+                    "SELECT media_id,payload FROM metrics"
+                ).fetchall():
+                    data = json.loads(payload)
+                    follows = 10 if media.startswith("challenger") else 0
+                    data["follows"] = {"data": [{"values": [{"value": follows}]}]}
+                    db.execute(
+                        "UPDATE metrics SET payload=? WHERE media_id=?",
+                        (json.dumps(data), media),
+                    )
                 db.commit()
                 evaluate(db)
                 update.assert_called_once_with({"decision_seconds": 3})

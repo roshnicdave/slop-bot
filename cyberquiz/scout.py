@@ -305,7 +305,19 @@ def choose(db, research):
             10000,
         )
 
-    ordered = sorted(preferred + bank, key=last_seen, reverse=True)
+    # Different answers can still look like the same Reel in the feed.
+    def hook(question):
+        return novelty.normalized(re.split(r"[\n.!]+", question.strip())[-1])
+
+    recent_hooks = {hook(item["question"]) for item in history[:4] if item["question"]}
+    ordered = sorted(
+        preferred + bank,
+        key=lambda scene: (
+            hook(scene["question"]) not in recent_hooks,
+            last_seen(scene),
+        ),
+        reverse=True,
+    )
     for scene in ordered:
         if scene["key"] in rejected:
             continue

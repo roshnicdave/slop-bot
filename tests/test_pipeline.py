@@ -499,9 +499,10 @@ class AudioVideoSyncTests(unittest.TestCase):
             root = Path(folder)
             p = plan(vlan(), {}, "test")
             p["decision_seconds"] = 4
+            p["sound_cues"] = True
             (root / "plan.json").write_text(json.dumps(p))
             for label, seconds, value in [
-                ("intro", 1, 1000),
+                ("intro", 3, 1000),
                 ("reveal_voice", 2, 2000),
                 ("fix_voice", 3, 3000),
             ]:
@@ -514,10 +515,17 @@ class AudioVideoSyncTests(unittest.TestCase):
             timing = json.loads((root / "timing.json").read_text())
             self.assertEqual(timing["reveal_at"], 5)
             self.assertEqual(timing["fix_at"], 7)
-            self.assertEqual([x["start"] for x in timing["segments"]], [0, 1, 5, 7])
+            self.assertEqual([x["start"] for x in timing["segments"]], [0, 3, 5, 7])
+            self.assertEqual(timing["sound_cues"]["tick_times"], [1, 2, 3, 4])
             with wave.open(str(root / "speech.wav")) as w:
-                for seconds, value in [(0, 1000), (2, 0), (5, 2000), (7, 3000)]:
-                    w.setpos(seconds * 24000)
+                for seconds, value in [
+                    (0, 1000),
+                    (2.5, 1000),
+                    (3.5, 0),
+                    (5, 2000),
+                    (7, 3000),
+                ]:
+                    w.setpos(round(seconds * 24000))
                     self.assertEqual(struct.unpack("<h", w.readframes(1))[0], value)
             self.assertTrue(artifact(root)["decode_ok"])
 

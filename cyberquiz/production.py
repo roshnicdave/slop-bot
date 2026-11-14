@@ -139,7 +139,9 @@ def _make(db, slot=None, scene_key=None, attempt=0):
         p["id"] = ident
         p["account"] = cfg["account"]
         p["evidence"] = evidence
-        p["design_version"] = 4
+        from .visual import PRESENTATION_VERSION
+
+        p["design_version"] = PRESENTATION_VERSION
         p["sound_cues"] = True
         p["narration_speed"] = cfg.get("narration_speed", 1.08)
         p["palette"] = cfg.get("palette", "ink")

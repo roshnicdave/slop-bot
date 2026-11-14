@@ -18,7 +18,7 @@ BLUE = "#dceefa"
 TEAL = "#087f82"
 GREEN = "#15804a"
 RED = "#cb4248"
-PRESENTATION_VERSION = 4
+PRESENTATION_VERSION = 5
 F = lru_cache(maxsize=100)(font)
 
 
@@ -319,8 +319,9 @@ def render(folder):
     decision = p.get("decision_seconds", 5)
     if type(decision) is not int or not 3 <= decision <= 7:
         raise ValueError("Solve countdown must be 3-7 whole seconds")
-    # On longer reads, let the first tick overlap the end of the question.
-    solve_start = intro - min(1.25, max(0, intro - 4))
+    # The question and diagram are readable from the first frame. Start ticking
+    # during narration while leaving room for the spoken question to finish.
+    solve_start = max(min(intro, 1.0), intro + 0.35 - decision)
     reveal_start = solve_start + decision
     if p.get("voice_version") == 2:
         reveal_audio = folder / "reveal_voice.wav"
@@ -370,7 +371,7 @@ def render(folder):
         boundaries.append(reveal_start + mascot_expand_seconds)
     times = scene_times(total, fps, boundaries)
     n = len(times) - 1
-    # A bounded 8 fps scene animation encoded at 24 fps: no AI-video spend.
+    # A bounded 8 fps scene animation encoded at 30 fps.
     for index, (t, until) in enumerate(zip(times, times[1:])):
         if t < reveal_start:
             stage = "question"

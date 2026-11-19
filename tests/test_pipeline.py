@@ -687,6 +687,8 @@ class SchedulingIsolationTests(unittest.TestCase):
             with (
                 patch.object(runner, "ROOT", root),
                 patch.object(runner, "config", return_value=cfg),
+                patch("cyberquiz.readiness.config", return_value=cfg),
+                patch("cyberquiz.timing_plan.apply"),
                 patch("cyberquiz.maintenance.cleanup"),
                 patch("cyberquiz.maintenance.backup"),
                 patch(

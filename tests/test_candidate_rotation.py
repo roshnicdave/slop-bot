@@ -9,6 +9,37 @@ from cyberquiz.scout import choose
 
 
 class CandidateRotationTests(unittest.TestCase):
+    def test_single_question_copy_keeps_the_verified_facts_and_choice_order(self):
+        from cyberquiz.editorial import choices, craft
+        from cyberquiz.scenarios import bank, plan
+
+        p = plan(next(s for s in bank() if s["key"] == "acl-order"), {}, "test")
+        facts = (p["model"].copy(), list(p["options"]), p["answer"], p["reveal_voice"])
+        labels = ["Choice " + letter for letter in "ABCD"]
+        with patch(
+            "cyberquiz.editorial.cloudflare.llm",
+            return_value={
+                "question": "Why can't this PC open the website?",
+                "choice_labels": labels,
+            },
+        ):
+            result = craft(
+                None, "test", p, {"editorial_feedback": {"issues": ["Vague opening"]}}
+            )
+        self.assertEqual(
+            result["question"].replace("\n", " "), "Why can't this PC open the website?"
+        )
+        self.assertEqual(choices(result), labels)
+        self.assertEqual(
+            (
+                result["model"],
+                result["options"],
+                result["answer"],
+                result["reveal_voice"],
+            ),
+            facts,
+        )
+
     def test_rejected_candidate_yields_to_another_concept(self):
         with tempfile.TemporaryDirectory() as folder:
             db = connect(Path(folder) / "state.sqlite")

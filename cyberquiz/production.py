@@ -156,7 +156,7 @@ def _make(db, slot=None, scene_key=None, attempt=0):
         from .learning import experiment
 
         p.update(experiment(db, p, ident))
-        from .editorial import craft
+        from .editorial import COPY_VERSION, craft, choices
 
         hook_changed = p.get("hook_strategy") != authored_hook
         craft_research = research
@@ -169,10 +169,15 @@ def _make(db, slot=None, scene_key=None, attempt=0):
                     ]
                 },
             }
-        if not prepared or hook_changed:
+        if (
+            not prepared
+            or hook_changed
+            or p.get("creative_draft", {}).get("version") != COPY_VERSION
+        ):
             original_question = p["question"]
+            original_choices = list(choices(p))
             p = craft(db, ident, p, craft_research)
-            if p["question"] != original_question:
+            if p["question"] != original_question or choices(p) != original_choices:
                 prepared = False  # A changed opening needs a fresh blind review.
             elif hook_changed:
                 # An unchanged title is not evidence that a challenger was applied.

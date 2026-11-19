@@ -10,6 +10,7 @@ from unittest.mock import Mock, patch
 from cyberquiz import cloudflare, curriculum, discovery, knowledge, novelty
 from cyberquiz.store import connect, new_job
 from cyberquiz.scenarios import plan, vlan
+from cyberquiz.editorial import COPY_VERSION
 
 
 class ContentSupplyTests(unittest.TestCase):
@@ -302,6 +303,13 @@ class ContentSupplyTests(unittest.TestCase):
             patch(
                 "cyberquiz.discovery.inference",
                 side_effect=responses,
+            ),
+            patch(
+                "cyberquiz.editorial.craft",
+                side_effect=lambda db, job, p, research: {
+                    **p,
+                    "creative_draft": {"version": COPY_VERSION},
+                },
             ),
             patch(
                 "cyberquiz.editorial.review_opening",
@@ -861,11 +869,12 @@ class ContentSupplyTests(unittest.TestCase):
                 knowledge.fetch("https://developer.mozilla.org/redirect")
             self.assertEqual(request.call_count, 1)
 
-    def test_initial_editorial_pass_does_not_rewrite_a_source_authored_question(self):
-        from cyberquiz.editorial import craft
+    def test_current_copy_is_not_rewritten_again(self):
+        from cyberquiz.editorial import COPY_VERSION, craft
 
         p = plan(vlan(), {}, "test")
         p["family"] = "source-grounded"
+        p["creative_draft"] = {"version": COPY_VERSION}
         question = p["question"]
         with patch("cyberquiz.editorial.cloudflare.llm") as model:
             result = craft(self.db, "test", p, {})

@@ -3,7 +3,7 @@
 import ipaddress
 from .visual import text, INK, GREEN
 
-VERSION = 2
+VERSION = 3
 
 SUPPORTED = frozenset(
     (
@@ -151,25 +151,26 @@ def draw(d, p, fixed):
             label(d, network, 452, y - 32, 14, 150)
     elif kind == "acl":
         computer(d, 121, 471)
-        link(d, (166, 466), (257, 466), True)
+        link(d, (166, 466), (237, 466), True)
         label(d, m["source"], 132, 540, 16, 140)
         label(d, "TCP 443", 208, 423, 17, 105)
         # A policy-processing stage, not an invented physical firewall appliance.
         d.polygon(
-            ((278, 394), (448, 394), (448, 512), (363, 549), (278, 512)),
+            ((241, 389), (485, 389), (485, 550), (363, 579), (241, 550)),
             fill="#e4eef5",
             outline="#426c83",
             width=3,
         )
-        label(d, "IPv4 ACL", 363, 401, 20)
+        label(d, "IPv4 ACL", 363, 398, 20)
         rules = m["fixed_rules"] if fixed else m["rules"]
         for i, (action, net) in enumerate(rules):
-            y = 443 + i * 50
+            y = 435 + i * 60
             d.rounded_rectangle(
-                (289, y - 4, 437, y + 42), radius=4, fill="white", outline="#9eb5c4"
+                (251, y - 4, 475, y + 49), radius=4, fill="white", outline="#9eb5c4"
             )
-            label(d, f"{(i + 1) * 10} {action} {net}", 363, y, 14, 145)
-        link(d, (449, 466), (548, 466), True)
+            label(d, f"{(i + 1) * 10} {action}", 363, y, 17, 210)
+            label(d, net, 363, y + 24, 20, 210)
+        link(d, (486, 466), (548, 466), True)
         server(d, 590, 466)
         label(d, "HTTPS", 590, 525, 19)
     elif kind == "trunk":
@@ -217,17 +218,14 @@ def draw(d, p, fixed):
         server(d, 584, 450)
         link(d, (176, 441), (319, 441), True)
         link(d, (319, 477), (176, 477), True)
-        label(d, "DNS query", 244, 407, 16, 140)
         reply = m["authoritative"] if fixed else m["cached"]
-        label(d, reply, 245, 492, 15, 150)
         link(d, (386, 450), (550, 450), dashed=True)
-        label(d, "Upstream", 468, 407, 16, 150)
         label(d, "Client", 130, 528, 19)
-        label(d, "Resolver cache", 352, 512, 18, 200)
-        label(d, reply, 352, 543, 16, 190)
-        label(d, "Refreshed" if fixed else f"TTL {m['ttl']} sec", 352, 573, 17, 190)
-        label(d, "Authoritative", 584, 512, 17, 150)
-        label(d, m["authoritative"], 584, 545, 15, 145)
+        label(d, "Saved DNS answer", 352, 512, 19, 210)
+        label(d, reply, 352, 548, 18, 210)
+        label(d, "Refreshed" if fixed else f"TTL {m['ttl']} sec", 352, 585, 18, 210)
+        label(d, "Website's DNS", 584, 512, 19, 150)
+        label(d, m["authoritative"], 584, 548, 17, 155)
     elif kind == "tls":
         computer(d, 156, 444)
         server(d, 560, 444)

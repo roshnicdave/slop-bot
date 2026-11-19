@@ -242,7 +242,9 @@ def frame(p, stage="question", remaining=None, phase=0, progress=0, subtitle=Non
                 center=True,
             )
     else:
-        for n, answer in enumerate(p["options"]):
+        from .editorial import choices
+
+        for n, answer in enumerate(choices(p)):
             y = 676 + n * 80
             correct = stage == "reveal" and n == p["correct"]
             d.rounded_rectangle(

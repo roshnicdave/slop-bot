@@ -293,6 +293,13 @@ def choose(db, research):
         ready = discovery.pool(db, excluded=rejected)
         if ready:
             return scenarios.validate(ready[0])
+        try:
+            fresh = discovery.candidate(db, research, excluded=rejected)
+        except cloudflare.FreeQuotaDeferred:
+            # Use a verified practice case while free research is deferred.
+            fresh = None
+        if fresh:
+            return scenarios.validate(fresh)
     bank = scenarios.bank()
     bykey = {p["key"]: p for p in bank}
     preferred = [bykey[i["key"]] for i in research["ideas"] if i["key"] in bykey]
@@ -345,10 +352,6 @@ def choose(db, research):
         except ValueError:
             continue
         return scenarios.validate(scene)
-    if config().get("source_discovery_enabled", True):
-        fresh = discovery.candidate(db, research, excluded=rejected)
-        if fresh:
-            return scenarios.validate(fresh)
     raise ValueError(
         "No sufficiently novel verified candidate; skipping instead of recycling content"
     )

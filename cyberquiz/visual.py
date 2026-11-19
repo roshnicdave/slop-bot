@@ -221,7 +221,9 @@ def frame(p, stage="question", remaining=None, phase=0, progress=0, subtitle=Non
             center=True,
         )
     else:
-        for i, option in enumerate(p["options"]):
+        from .editorial import choices
+
+        for i, option in enumerate(choices(p)):
             yy = 665 + i * 88
             right = stage == "reveal" and i == p["correct"]
             d.rounded_rectangle((29, yy + 4, 691, yy + 77), radius=16, fill="#e0e7ed")

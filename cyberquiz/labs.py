@@ -32,7 +32,7 @@ def bank():
     return [
         scene(
             "longest-prefix",
-            "Routes overlap.\nWhich next hop wins?",
+            "Where will this router\nsend the packet?",
             "Routing table only. All next hops reachable.",
             [
                 "Destination: 10.1.2.9",
@@ -58,7 +58,7 @@ def bank():
         ),
         scene(
             "acl-order",
-            "The permit exists.\nWhy is HTTPS blocked?",
+            "Why can't this PC\nopen the website?",
             "First-match IPv4 ACL. Applied inbound. TCP 443.",
             [
                 "Source: 10.1.2.9 -> TCP 443",
@@ -84,7 +84,7 @@ def bank():
         ),
         scene(
             "trunk-allow",
-            "VLAN exists at both ends.\nWhy does it stop here?",
+            "Why can't this VLAN\ncross the link?",
             "Access ports correct. Single trunk. No routing.",
             [
                 "Traffic: VLAN 20",
@@ -111,7 +111,7 @@ def bank():
         ),
         scene(
             "pool-exhausted",
-            "DHCP is running.\nWhy no new lease?",
+            "Why can't this PC\nget an IP address?",
             "One scope. No exclusions. Every address shown.",
             [
                 "Pool: 192.168.1.10 - .11",
@@ -136,7 +136,7 @@ def bank():
         ),
         scene(
             "dns-cache",
-            "The record changed.\nWhy the old address?",
+            "Why does this PC still\nuse the old IP?",
             "Resolver cache is valid. No hosts-file override.",
             [
                 "Authoritative A: 203.0.113.20",
@@ -162,7 +162,7 @@ def bank():
         ),
         scene(
             "tls-name",
-            "HTTPS reaches the server.\nWhy the certificate error?",
+            "Why does this website\nshow a certificate error?",
             "Certificate trusted, unexpired. No other SAN names.",
             [
                 "Requested: api.example.com",
@@ -203,7 +203,7 @@ def bank():
         ),
         scene(
             "broadcast-host",
-            "One PC has this IP.\nWhy is it invalid here?",
+            "Why can't this PC\nuse this IP address?",
             "Ordinary IPv4 /24 LAN. No special host routes.",
             [
                 "PC: 192.168.10.255/24",
@@ -227,7 +227,7 @@ def bank():
         ),
         scene(
             "mtu-df",
-            "Small pings work.\nWhy do large ones fail?",
+            "Why do only large\npings fail?",
             "IPv4. DF set. ICMP fragmentation-needed reaches sender.",
             [
                 "IP packet: 1500 bytes, DF = 1",
@@ -254,7 +254,7 @@ def bank():
         ),
         scene(
             "duplicate-ip",
-            "Both links are green.\nWhy does ARP keep changing?",
+            "Why do these PCs keep\nlosing their connection?",
             "Same VLAN. Two distinct devices. No proxy ARP.",
             [
                 "PC A: 192.168.1.20, MAC ...:AA",

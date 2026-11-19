@@ -1,3 +1,4 @@
+import json
 import unittest
 from unittest.mock import patch
 from cyberquiz.scenarios import bank, dns, plan, vlan
@@ -63,6 +64,7 @@ class PuzzleQualityTests(unittest.TestCase):
             "diagram_needed": True,
             "plausible_distractors": True,
             "quick_read": True,
+            "concrete_opening": True,
         }
         solver.update(changes)
 
@@ -100,6 +102,7 @@ class PuzzleQualityTests(unittest.TestCase):
             {"title_gives_answer": True},
             {"diagram_needed": False},
             {"plausible_distractors": False},
+            {"concrete_opening": False},
         ):
             self.assertFalse(self.evaluate(**change)[0]["passed"])
 
@@ -193,16 +196,76 @@ class PuzzleQualityTests(unittest.TestCase):
 
     def test_diagram_that_repeats_a_choice_is_rejected_before_solving(self):
         p = plan(vlan(), {}, "test")
+        p["diagram"]["left"]["name"] = p["answer"]
         with patch(
             "cyberquiz.quality.cloudflare.llm",
             return_value={
                 "restates_option": None,
                 "diagram_restates_option": p["answer"],
+                "diagram_quote": p["answer"],
                 "technical_inference": False,
             },
         ) as model:
             self.assertFalse(review(None, "test", p)["passed"])
             model.assert_called_once()
+
+    def test_reworded_choices_are_solved_in_their_displayed_order(self):
+        p = plan(vlan(), {}, "test")
+        p["choice_labels"] = ["Choice " + letter for letter in "ABCD"]
+        with patch(
+            "cyberquiz.quality.cloudflare.llm",
+            side_effect=[
+                {
+                    "restates_option": None,
+                    "diagram_restates_option": "A diagnosis the critic inferred",
+                    "technical_inference": False,
+                },
+                {
+                    "answer_text": p["choice_labels"][p["correct"]],
+                    "ambiguous": False,
+                    "clear_question": True,
+                    "evidence_consistent": True,
+                    "title_gives_answer": False,
+                    "diagram_needed": True,
+                    "plausible_distractors": True,
+                    "quick_read": True,
+                    "concrete_opening": True,
+                    "choice_meanings_preserved": True,
+                    "issues": [],
+                },
+            ],
+        ) as model:
+            self.assertTrue(review(None, "test", p)["passed"])
+            shown = json.loads(model.call_args.args[2][1]["content"])
+            self.assertEqual(shown["options"], p["choice_labels"])
+
+    def test_a_correct_answer_cannot_hide_a_changed_distractor(self):
+        p = plan(vlan(), {}, "test")
+        p["choice_labels"] = list(p["options"])
+        wrong = next(i for i in range(4) if i != p["correct"])
+        p["choice_labels"][wrong] = "Another name for the answer"
+        with patch(
+            "cyberquiz.quality.cloudflare.llm",
+            side_effect=[
+                {"restates_option": None, "diagram_restates_option": None},
+                {
+                    "answer_text": p["answer"],
+                    "ambiguous": False,
+                    "clear_question": True,
+                    "evidence_consistent": True,
+                    "title_gives_answer": False,
+                    "diagram_needed": True,
+                    "plausible_distractors": True,
+                    "quick_read": True,
+                    "concrete_opening": True,
+                    "choice_meanings_preserved": False,
+                    "issues": ["Changed the first distractor"],
+                },
+            ],
+        ) as model:
+            self.assertFalse(review(None, "test", p)["passed"])
+            original = json.loads(model.call_args.args[2][1]["content"])
+            self.assertEqual(original["original_choices_in_same_order"], p["options"])
 
     def test_missing_diagram_audit_cannot_reuse_an_old_title_pass(self):
         p = plan(vlan(), {}, "test")

@@ -49,6 +49,12 @@ def ensure(db, recover_preflight=False):
             < REVIEW_VERSION
         )
         clock = dt.datetime.now(dt.timezone.utc)
+        last_publication = db.execute(
+            "SELECT MAX(published_at) FROM jobs WHERE status='published'"
+        ).fetchone()[0]
+        publication_recovered = bool(
+            last and last_publication and last_publication > last[0]
+        )
         research_recovered = bool(
             last
             and last[2] is None
@@ -63,6 +69,7 @@ def ensure(db, recover_preflight=False):
             and not (recover_preflight and last[2] is None)
             and not review_upgraded
             and not research_recovered
+            and not publication_recovered
             and (clock - dt.datetime.fromisoformat(last[0])).total_seconds() < 1800
         ):
             return "backoff"
@@ -77,20 +84,24 @@ def ensure(db, recover_preflight=False):
             .date()
             == local.date()
         ]
-        drafted = produced = 0
+        drafted = 0
         for entry in attempts:
             jobs = db.execute(
                 "SELECT id,status FROM jobs WHERE slot=? OR slot LIKE ?",
                 ("buffer:" + str(entry[0]), "buffer:" + str(entry[0]) + ":%"),
             ).fetchall()
-            drafted += bool(jobs)
-            produced += any(
-                j["status"] not in ("held_quality", "failed", "rejected", "drafting")
-                or db.execute(
-                    "SELECT 1 FROM charges WHERE job=? LIMIT 1", (j["id"],)
-                ).fetchone()
-                for j in jobs
+            # A confirmed post proves recovery. Earlier failed drafts must not
+            # starve the following slot; provider and media caps still span today.
+            drafted += bool(jobs) and (
+                not last_publication or entry["created"] > last_publication
             )
+        start = local.replace(hour=0, minute=0, second=0, microsecond=0)
+        produced = db.execute(
+            "SELECT count(*) FROM jobs j WHERE j.created>=? AND "
+            "(j.status NOT IN ('held_quality','failed','rejected','drafting') "
+            "OR EXISTS (SELECT 1 FROM charges c WHERE c.job=j.id))",
+            (start.astimezone(dt.timezone.utc).isoformat(),),
+        ).fetchone()[0]
         if produced >= cfg["posts_per_day"] + 1 or drafted >= cfg.get(
             "daily_draft_attempt_limit", 2 * (cfg["posts_per_day"] + 1)
         ):

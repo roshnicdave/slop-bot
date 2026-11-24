@@ -4,7 +4,7 @@ import json
 import re
 from . import cloudflare
 
-COPY_VERSION = 3
+COPY_VERSION = 4
 
 
 def choices(p):
@@ -20,6 +20,17 @@ def choices(p):
     ):
         raise ValueError("Choice labels must be four distinct short phrases")
     return labels
+
+
+def copy_text(value):
+    """Normalize typography without changing identifiers or dropping characters."""
+    if not isinstance(value, str):
+        return value
+    punctuation = dict.fromkeys(map(ord, "‐‑‒–—−"), "-")
+    punctuation.update(dict.fromkeys(map(ord, "‘’"), "'"))
+    punctuation.update(dict.fromkeys(map(ord, '“”'), '"'))
+    punctuation[ord("\u00a0")] = " "
+    return " ".join(value.translate(punctuation).split())
 
 
 def safe_hook(value):
@@ -110,9 +121,9 @@ def craft(db, job, p, research):
         from .render import wrap
         from .visual import F
 
-        lines = wrap(" ".join(result["question"].split()), F(33, True), 590)
+        lines = wrap(copy_text(result["question"]), F(33, True), 590)
     if isinstance(lines, list):
-        lines = [" ".join(x.split()) if isinstance(x, str) else x for x in lines]
+        lines = [copy_text(x) for x in lines]
     if (
         isinstance(lines, list)
         and 1 <= len(lines) <= 2
@@ -126,9 +137,24 @@ def craft(db, job, p, research):
         from .speech import speak
 
         p["intro"] = speak(" ".join(lines))
+    choice_status = "retained"
     if "choice_labels" in result:
-        proposed = {**p, "choice_labels": result["choice_labels"]}
-        p["choice_labels"] = choices(proposed)
+        labels = result["choice_labels"]
+        proposed = {
+            **p,
+            "choice_labels": [copy_text(x) for x in labels]
+            if isinstance(labels, list)
+            else labels,
+        }
+        try:
+            checked = choices(proposed)
+        except ValueError:
+            # Optional copy must never destroy an otherwise valid puzzle. Keep
+            # the previous choices and let the independent reviewer judge them.
+            choice_status = "invalid_proposal_retained_original"
+        else:
+            p["choice_labels"] = checked
+            choice_status = "accepted_for_review"
     from .speech import speak
 
     opening = p["question"].replace("\n", " ")
@@ -141,6 +167,7 @@ def craft(db, job, p, research):
         "version": COPY_VERSION if not deferred else 0,
         "opening": opening,
         "hook_lines": p["question"].split("\n"),
+        "choice_status": choice_status,
         "copy_status": "deferred:" + deferred
         if deferred
         else "revised"

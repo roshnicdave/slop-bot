@@ -169,6 +169,10 @@ def _make(db, slot=None, scene_key=None, attempt=0):
                     ]
                 },
             }
+        # Save the verified scene before optional copy editing. A malformed model
+        # response must not erase the evidence needed for diagnosis or recovery.
+        db.execute("UPDATE jobs SET plan=? WHERE id=?", (json.dumps(p), ident))
+        db.commit()
         if (
             not prepared
             or hook_changed

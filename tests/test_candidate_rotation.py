@@ -40,6 +40,45 @@ class CandidateRotationTests(unittest.TestCase):
             facts,
         )
 
+    def test_model_typography_is_normalized_before_choice_validation(self):
+        from cyberquiz.editorial import choices, craft
+        from cyberquiz.scenarios import bank, plan
+
+        p = plan(next(s for s in bank() if s["key"] == "broadcast-host"), {}, "test")
+        options = ["Subnet broadcast", "Private address", "Gateway off\u2011subnet", "No host addresses"]
+        with patch(
+            "cyberquiz.editorial.cloudflare.llm",
+            return_value={
+                "question": "Why can\u2019t this PC use this IP address?",
+                "choice_labels": options,
+            },
+        ):
+            result = craft(None, "test", p, {"editorial_feedback": {"issues": []}})
+        self.assertEqual(choices(result)[2], "Gateway off-subnet")
+        self.assertTrue(result["question"].isascii())
+        self.assertEqual(result["creative_draft"]["choice_status"], "accepted_for_review")
+
+    def test_malformed_optional_choices_do_not_break_a_valid_puzzle(self):
+        from cyberquiz.editorial import choices, craft
+        from cyberquiz.scenarios import plan
+
+        invalid = [None, "ABCD", ["One"], ["One"] * 4,
+                   ["One", "Two", "Three", "x" * 41],
+                   ["One", "Two", "Three", 4],
+                   ["One", "Two", "Three", "\u4e2d"]]
+        for proposal in invalid:
+            with self.subTest(proposal=proposal):
+                p = plan(vlan(), {}, "test")
+                original = list(p["options"])
+                with patch(
+                    "cyberquiz.editorial.cloudflare.llm",
+                    return_value={"choice_labels": proposal},
+                ):
+                    result = craft(None, "test", p, {"editorial_feedback": {"issues": []}})
+                self.assertEqual(choices(result), original)
+                self.assertEqual(result["creative_draft"]["choice_status"],
+                                 "invalid_proposal_retained_original")
+
     def test_rejected_candidate_yields_to_another_concept(self):
         with tempfile.TemporaryDirectory() as folder:
             db = connect(Path(folder) / "state.sqlite")

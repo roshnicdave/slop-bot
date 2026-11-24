@@ -181,6 +181,52 @@ class ReadinessTests(unittest.TestCase):
             self.assertEqual(ensure(self.db), "daily_limit")
             generate.assert_not_called()
 
+    def test_confirmed_publication_releases_old_failures_without_resetting_paid_cap(self):
+        from cyberquiz.store import now
+
+        self.cfg["daily_draft_attempt_limit"] = 3
+        self.db.execute(
+            "CREATE TABLE readiness_attempts(id INTEGER PRIMARY KEY,created TEXT,status TEXT,job TEXT)"
+        )
+        for i in range(1, 4):
+            self.db.execute(
+                "INSERT INTO readiness_attempts VALUES(?,?,?,NULL)",
+                (i, now(), "failed:ValueError"),
+            )
+            job = new_job(self.db, "failed draft", "buffer:" + str(i))
+            self.db.execute("UPDATE jobs SET status='failed' WHERE id=?", (job,))
+        recovered = new_job(self.db, "recovered")
+        self.db.execute(
+            "UPDATE jobs SET status='published',approved=1,published_at=? WHERE id=?",
+            (now(), recovered),
+        )
+        self.db.commit()
+
+        def make(db, slot):
+            ident = new_job(db, "ready", slot)
+            db.execute("UPDATE jobs SET status='rendered',approved=1 WHERE id=?", (ident,))
+            db.commit()
+            return ident
+
+        with (
+            patch("cyberquiz.readiness.config", return_value=self.cfg),
+            patch("cyberquiz.readiness.worker_lock", side_effect=contextlib.nullcontext),
+            patch("cyberquiz.production.make", side_effect=make) as generate,
+        ):
+            next_job = ensure(self.db)
+            generate.assert_called_once()
+            self.db.execute("UPDATE jobs SET status='published',published_at=? WHERE id=?",
+                            (now(), next_job))
+            another = new_job(self.db, "paid repair outside buffer")
+            self.db.execute("UPDATE jobs SET status='failed' WHERE id=?", (another,))
+            self.db.execute(
+                "INSERT INTO charges(id,job,kind,created,reserved,status) VALUES(?,?,?,?,?,?)",
+                ("repair", another, "voice", now(), 1, "reserved"),
+            )
+            self.db.commit()
+            self.assertEqual(ensure(self.db), "daily_limit")
+            generate.assert_called_once()
+
     def test_held_quality_result_is_not_reported_as_ready(self):
         def make(db, slot):
             job = new_job(db, "test", slot)
